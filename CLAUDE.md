@@ -33,6 +33,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Contract = Pydantic models in `backend/app/models.py` → `shared/openapi.json` → `app/src/api/schema.ts`.
 - Screens use `mockClient.ts` while `EXPO_PUBLIC_USE_MOCKS=true`; `client.ts` hits `EXPO_PUBLIC_API_URL`.
 
+## Design decisions and quirks
+- Backend ignores `DATABASE_URL` for now: `backend/app/store.py` serves 8 seeded demo users x 60 nights in memory (resets on restart). P1 swaps it for Tiger Cloud SQL and keeps the `models.py` shapes unchanged. `db.py` is unused until then; `scripts/seed.py` (untested) loads the same data into Tiger Cloud and refuses a non-empty DB without `--reset`.
+- Datetimes are naive device-local wall-clock times (the Shortcut's tz offset is dropped). A night's `day` is its wake-up date. Bedtime consistency uses minutes since 18:00 so midnight doesn't wrap.
+- Weekly leaderboard = Monday through today, average of nightly scores.
+- Shortcut parser: "In Bed" and "InBed" both work; samples more than 3 h apart start a new night; under 30 min asleep is ignored; the longest night wins per wake date.
+- App routes live in `app/src/app/` (Expo SDK 57 Expo Router); tabs are wired in `src/components/app-tabs.tsx` (+ `.web.tsx`). `app/AGENTS.md` says to check the Expo docs, not memory, before using Expo APIs.
+- `npm run gen:api` runs `npx openapi-typescript@7.13.0` (its peer range rejects TypeScript 6, so it isn't a devDependency). `@expo/ngrok` is a devDependency so `expo start --tunnel` needs no global install.
+- P2 and P3 are placeholders in docs; the team knows who they are.
 ## Tech stack
 - App: Expo latest SDK, TypeScript, Expo Router; expo-glass-effect (GlassView/GlassContainer) with expo-blur fallback; expo-linear-gradient; react-native-reanimated; lottie-react-native; react-native-gifted-charts + react-native-svg; expo-audio; expo-haptics; expo-notifications (local only); expo-linking; expo-font; expo-auth-session (v4 Whoop).
 - Backend: Python 3.12, FastAPI, Uvicorn, psycopg pool, pydantic-settings, google-genai, elevenlabs, httpx, numpy, pandas, pytest.
@@ -71,9 +79,9 @@ Each slice is a complete, demoable app merged to main and tagged. Never start th
 - A slice is done only when it runs from a fresh clone and a teammate clicked through it. If a slice runs 1 h late, cut its lowest feature and tag anyway. Hard stop on features at 7:30 AM; after that only video, Devpost, README.
 
 ## Ownership (only the owner edits these files)
-- P1 Promit — data/backend/Shortcut: `backend/db/`, `backend/app/routes/{sleep,leaderboard,ingest}.py`, `backend/app/scoring.py`, `backend/scripts/`, `shortcut/`.
+- P1 Promit — data/backend/Shortcut: `backend/db/`, `backend/app/routes/{sleep,leaderboard,ingest}.py`, `backend/app/scoring.py`, `backend/app/store.py`, `backend/scripts/`, `shortcut/`.
 - P2 — AI/API client/submission: `backend/app/routes/ai.py`, `backend/app/integrations/`, `app/src/api/` (client, mocks, generated schema.ts), `docs/`, Devpost, demo video.
-- P3 — app UI/design: everything else in `app/` (`app/(tabs)/`, `src/components/`, `src/theme/`, `assets/`, `app.json`, `package.json`, `package-lock.json`).
+- P3 — app UI/design: everything else in `app/` (`src/app/` routes, `src/components/`, `src/theme/`, `assets/`, `app.json`, `package.json`, `package-lock.json`).
 - Hotspots: `models.py`, `shared/openapi.json`, `main.py` → P1. `package.json`, lockfile, `app.json` → P3. Anyone else posts the change in team chat; the owner makes a tiny PR.
 - If asked to change a file you don't own: stop, explain the needed change, and draft it for the owner instead.
 
