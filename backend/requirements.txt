@@ -1,5 +1,11 @@
 fastapi
 uvicorn[standard]
+psycopg[binary,pool]
+pydantic-settings
 python-dotenv
-pytest
+google-genai
+elevenlabs
 httpx
+numpy
+pandas
+pytest

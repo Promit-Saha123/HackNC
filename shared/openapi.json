@@ -1,0 +1,724 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Sleep Squad API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "summary": "Users",
+        "operationId": "users_users_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  },
+                  "type": "array",
+                  "title": "Response Users Users Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{user_id}/overview": {
+      "get": {
+        "summary": "Overview",
+        "operationId": "overview_users__user_id__overview_get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Overview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sleep/shortcut": {
+      "post": {
+        "summary": "Shortcut",
+        "description": "Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line.",
+        "operationId": "shortcut_sleep_shortcut_post",
+        "parameters": [
+          {
+            "name": "x-user-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "X-User-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShortcutResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/leaderboard": {
+      "get": {
+        "summary": "Leaderboard",
+        "operationId": "leaderboard_leaderboard_get",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "week",
+                "all"
+              ],
+              "type": "string",
+              "default": "week",
+              "title": "Period"
+            }
+          },
+          {
+            "name": "squad",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Squad"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Leaderboard"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/briefing/{user_id}": {
+      "get": {
+        "summary": "Briefing",
+        "operationId": "briefing_ai_briefing__user_id__get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Briefing"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/audio/{file}": {
+      "get": {
+        "summary": "Audio",
+        "operationId": "audio_ai_audio__file__get",
+        "parameters": [
+          {
+            "name": "file",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ingest/{user_id}/token": {
+      "post": {
+        "summary": "Create Token",
+        "description": "v3: per-user ingest token for the Shortcut (replaces the bare X-User-Id).",
+        "operationId": "create_token_ingest__user_id__token_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Briefing": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "audio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "text"
+        ],
+        "title": "Briefing"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Leaderboard": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "enum": [
+              "week",
+              "all"
+            ],
+            "title": "Period"
+          },
+          "squad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Squad"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/LeaderboardEntry"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "entries"
+        ],
+        "title": "Leaderboard"
+      },
+      "LeaderboardEntry": {
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "squad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Squad"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "streak_days": {
+            "type": "integer",
+            "title": "Streak Days"
+          },
+          "badge": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Badge"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rank",
+          "user_id",
+          "name",
+          "score",
+          "streak_days"
+        ],
+        "title": "LeaderboardEntry"
+      },
+      "NightScore": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "score"
+        ],
+        "title": "NightScore"
+      },
+      "Overview": {
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "last_night": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SleepNight"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "score": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScoreBreakdown"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/NightScore"
+            },
+            "type": "array",
+            "title": "History",
+            "default": []
+          },
+          "streak_days": {
+            "type": "integer",
+            "title": "Streak Days",
+            "default": 0
+          },
+          "badge": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Badge"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user"
+        ],
+        "title": "Overview"
+      },
+      "ScoreBreakdown": {
+        "properties": {
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "duration_pts": {
+            "type": "number",
+            "title": "Duration Pts"
+          },
+          "consistency_pts": {
+            "type": "number",
+            "title": "Consistency Pts"
+          },
+          "quality_pts": {
+            "type": "number",
+            "title": "Quality Pts"
+          },
+          "streak_pts": {
+            "type": "number",
+            "title": "Streak Pts"
+          },
+          "streak_days": {
+            "type": "integer",
+            "title": "Streak Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "score",
+          "duration_pts",
+          "consistency_pts",
+          "quality_pts",
+          "streak_pts",
+          "streak_days"
+        ],
+        "title": "ScoreBreakdown"
+      },
+      "ShortcutResult": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "samples_parsed": {
+            "type": "integer",
+            "title": "Samples Parsed"
+          },
+          "samples_skipped": {
+            "type": "integer",
+            "title": "Samples Skipped"
+          },
+          "nights_found": {
+            "type": "integer",
+            "title": "Nights Found"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "samples_parsed",
+          "samples_skipped",
+          "nights_found"
+        ],
+        "title": "ShortcutResult"
+      },
+      "SleepNight": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "bedtime": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Bedtime"
+          },
+          "wake_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Wake Time"
+          },
+          "duration_min": {
+            "type": "integer",
+            "title": "Duration Min"
+          },
+          "efficiency": {
+            "type": "number",
+            "title": "Efficiency"
+          },
+          "deep_min": {
+            "type": "integer",
+            "title": "Deep Min"
+          },
+          "rem_min": {
+            "type": "integer",
+            "title": "Rem Min"
+          },
+          "light_min": {
+            "type": "integer",
+            "title": "Light Min"
+          },
+          "awake_min": {
+            "type": "integer",
+            "title": "Awake Min"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "bedtime",
+          "wake_time",
+          "duration_min",
+          "efficiency",
+          "deep_min",
+          "rem_min",
+          "light_min",
+          "awake_min",
+          "source"
+        ],
+        "title": "SleepNight"
+      },
+      "User": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "squad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Squad"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "is_demo": {
+            "type": "boolean",
+            "title": "Is Demo",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "User"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
