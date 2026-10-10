@@ -22,10 +22,36 @@ Current status and everyone's next task: `HANDOFF.md`. Rules (file ownership, gi
    | P2 AI / API client / submission | _name TBD_ | `routes/ai.py`, `backend/app/integrations`, `app/src/api`, `docs/`, Devpost, demo video | Gemini briefing + ElevenLabs audio |
    | P3 app UI / design | _name TBD_ | rest of `app/` incl. `package.json`, lockfile, `app.json` | Frutiger Aero polish: dream sky, font, icons |
 
-4. **Work in small branches.** `git checkout -b p2/<task>` (use your own `p1`/`p2`/`p3`). Keep branches under 2 hours, then `git fetch; git rebase origin/main`, run the backend and the app, and open a small PR. Only P3 runs `npx expo install`.
+4. **Work in small branches** named `p1/<task>`, `p2/<task>` or `p3/<task>`; see "Branching and PRs" below. Only P3 runs `npx expo install`.
 5. **Secrets stay out of git.** `.env` files are ignored. Promit shares `DATABASE_URL` privately; P2 creates their own Gemini and ElevenLabs keys and puts them in `backend/.env`.
 6. **Using Claude Code (optional).** It reads `CLAUDE.md` automatically. `.claude/settings.json` enables the `ecc` plugin; run `/plugin marketplace add affaan-m/everything-claude-code` once so it can load.
 7. **End of every work block:** update `HANDOFF.md`.
+## Branching and PRs
+- `main` must always run. Never commit to it directly; everything lands through a PR.
+- Branch names: `p1/<task>`, `p2/<task>`, `p3/<task>`, e.g. `p2/gemini-briefing`. One task per branch, 1-2 hours max.
+
+```powershell
+git checkout main; git pull
+git checkout -b p2/gemini-briefing          # your role + task
+
+# work, then commit small and often (add only your files, never .env)
+git add backend/app/integrations/gemini.py
+git commit -m "Gemini briefing: structured JSON prompt"
+
+git fetch; git rebase origin/main           # before every PR; fix conflicts, then: git rebase --continue
+# run the backend and open the app in Expo Go
+git push -u origin p2/gemini-briefing       # after a rebase on an already-pushed branch: git push --force-with-lease
+```
+Then open a PR on GitHub into `main`, get one teammate glance, merge, and delete the branch.
+
+Conflict rules:
+- Lockfile (`app/package-lock.json`): take main's version; P3 re-runs `npx expo install`. Never hand-merge it.
+- `app/src/api/schema.ts` and `shared/openapi.json` are generated: re-run `python backend/scripts/export_openapi.py` then `npm run gen:api` instead of merging by hand.
+- Changing `backend/app/models.py` (the contract)? Additive only: add fields, never rename or remove. P1 owns it, so ask Promit or send a tiny PR.
+- Need a change in someone else's files? Ask the owner; don't edit them.
+
+Slice releases: at each slice target (v1, v2, v3) Promit freezes merges for 15 minutes, runs `main` from a fresh clone, then tags it (`git tag v1; git push --tags`).
+Running several Claude Code sessions at once? Give each branch its own folder: `git worktree add ..\HackNC-p2 p2/<task>`.
 ## Prerequisites (Windows)
 Git, Python 3.12, Node LTS, `cloudflared`, and Expo Go on your iPhone.
 
