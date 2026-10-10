@@ -29,6 +29,8 @@ Current status and everyone's next task: `HANDOFF.md`. Rules (file ownership, gi
 ## Prerequisites (Windows)
 Git, Python 3.12, Node LTS, `cloudflared`, and Expo Go on your iPhone.
 
+If `pip install` fails with a "No such file or directory" path error, the repo path is too long for Windows: clone to a short path (e.g. `C:\dev\HackNC`) or enable long paths.
+
 ## Backend
 ```powershell
 cd backend
