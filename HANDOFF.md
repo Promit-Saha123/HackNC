@@ -18,12 +18,12 @@ v1 in progress. Last tag: v0 (scaffold).
 
 ## Blockers / decisions needed
 - Tiger Cloud connection string (Promit) is not set up yet; the API runs on in-memory data until it is.
-- `gh` / `cloudflared` winget installs need an admin (UAC) prompt; confirm they are installed before the tunnel step.
+- Teammates need collaborator access to the GitHub repo (Promit adds them).
 
 ## How to run right now
 - Backend: `cd backend; .\.venv\Scripts\Activate.ps1; uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
 - App: `cd app; npx expo start --tunnel` (mocks on by default: `app/.env.example`)
-- Tunnel URL: none running.
+- Expo tunnel: `npx expo start --tunnel` (`@expo/ngrok` is now an app devDependency, so there is no install prompt). Backend tunnel URL (cloudflared): none running.
 
 ## Known bugs / notes
 - `npx expo lint` and `npm run typecheck` run. Lint has 1 error in the template file `app/src/hooks/use-color-scheme.web.ts` (setState in effect, web only); not ours, fix when touching web.
