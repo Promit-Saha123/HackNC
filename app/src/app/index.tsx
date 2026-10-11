@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { USE_MOCKS, api } from '@/api/client';
 import type { Overview } from '@/api/types';
+import { BriefingCard } from '@/components/BriefingCard';
 import { GlassCard } from '@/components/GlassCard';
 import { SkyBackground } from '@/components/SkyBackground';
 import { UserPicker } from '@/components/UserPicker';
@@ -87,6 +88,8 @@ export default function HomeScreen() {
               <Text style={styles.stat}>No sleep synced yet.</Text>
             )}
           </GlassCard>
+
+          <BriefingCard userId={userId} refreshKey={refreshTick} />
 
           <GlassCard style={styles.card}>
             <Text style={styles.label}>Last 7 nights</Text>

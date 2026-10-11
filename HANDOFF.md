@@ -9,12 +9,12 @@ v1 in progress. Last tag: v0 (scaffold).
 - 2026-10-10 Promit (main): backend with in-memory seeded demo data (8 users x 60 nights), scoring, overview + leaderboard, Shortcut parser, AI/ingest stubs; 12 tests pass. Expo app: Home (score card, 7-night chart, Sync button), Leaderboard (week/all), pick-your-user, glass cards.
 
 ## In progress
-- Nobody yet.
+- P2 Sharvil (`p2/gemini-briefing`, not pushed yet): Gemini briefing in `backend/app/integrations/gemini.py` (gemini-3.8-flash, structured JSON, own-baseline only, retry on gemini-3.5-flash, template fallback, cached per night) + tests (`tests/test_gemini.py`, `tests/conftest.py` blocks live Gemini in tests). App: `src/components/BriefingCard.tsx` on Home (`src/app/index.tsx`, P3 sign-off needed), mock briefing in `src/api/mockClient.ts`.
 
 ## Next up
 - Everyone: scan the QR (`npx expo start --tunnel`) in Expo Go; the glass UI is not yet verified on a phone.
 - P1 Promit: Tiger Cloud (create service, `DATABASE_URL`, `scripts/apply_schema.py`, `scripts/seed.py`), switch store -> SQL; build the Shortcut and test a real sync.
-- P2: Gemini briefing (`integrations/gemini.py`) + ElevenLabs audio (`integrations/elevenlabs.py`), briefing card in the app via `app/src/api/`.
+- P2: open PR for `p2/gemini-briefing`; then v3 weekly Gemini insight. ElevenLabs audio is deferred to the end if time allows (no key yet).
 - P3: UI polish: font via expo-font, dream sky, clouds/bubbles, replace the leaderboard tab icon (still the template's explore icon).
 
 ## Blockers / decisions needed
@@ -32,5 +32,6 @@ v1 in progress. Last tag: v0 (scaffold).
 - `openapi-typescript` runs via `npx` in `npm run gen:api` (its peer range rejects TypeScript 6, so it is not a devDependency).
 - Nothing verified on a phone yet; the real UI check is in Expo Go.
 - `scripts/seed.py` is written but untested (needs Tiger Cloud).
+- Gemini free tier is 5 requests/min per model; the per-night cache keeps it fine, but a cold first briefing can take ~3-13 s (the card shows "Writing your briefing..."). Needs `GEMINI_API_KEY` in `backend/.env`; without it the template text is returned.
 
-Last updated: 2026-10-10, Promit
+Last updated: 2026-10-10, Sharvil (P2)
