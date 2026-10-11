@@ -50,3 +50,21 @@ def test_missing_punctuation_is_added(monkeypatch):
     draft = gemini.BriefingDraft(headline="Morning Sam", body="You scored 50!", tip="Bed by 11")
     monkeypatch.setattr(gemini, "_ask_gemini", lambda facts: draft)
     assert gemini.briefing_text(overview()).startswith("Morning Sam. You scored 50! Bed by 11. (Just")
+
+
+def test_daily_quota_model_is_skipped(monkeypatch):
+    tried = []
+
+    class FakeModels:
+        def generate_content(self, model, contents, config):
+            tried.append(model)
+            if model == gemini.MODELS[0]:
+                raise RuntimeError("429 RESOURCE_EXHAUSTED GenerateRequestsPerDayPerProjectPerModel-FreeTier")
+            return type("R", (), {"parsed": DRAFT, "text": ""})()
+
+    monkeypatch.setattr(gemini.settings, "gemini_api_key", "test")
+    monkeypatch.setattr(gemini, "_client", type("C", (), {"models": FakeModels()})())
+    monkeypatch.setattr(gemini, "_exhausted", set())
+    assert gemini.structured("sys", "facts", gemini.BriefingDraft) == DRAFT
+    assert gemini.structured("sys", "facts", gemini.BriefingDraft) == DRAFT
+    assert tried == [gemini.MODELS[0], gemini.MODELS[1], gemini.MODELS[1]]  # exhausted model not retried
