@@ -4,6 +4,7 @@ import {
   setAudioModeAsync,
   useAudioPlayer,
   useAudioRecorder,
+  useAudioRecorderState,
 } from 'expo-audio';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
@@ -26,6 +27,8 @@ import type { ChatMessage } from '@/api/types';
 import { colors } from '@/theme/colors';
 import { fontFamily, type as t } from '@/theme/fonts';
 import { radius, spacing } from '@/theme/spacing';
+
+const SILENCE_DB = -50; // peak mic level below this = the phone recorded silence (iOS metering is ~-160..0 dB)
 
 const STARTERS = ['Why did my score change?', "How's my streak going?", 'How can I climb the leaderboard?'];
 
@@ -63,7 +66,9 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
   const [draft, setDraft] = useState('');
   const [thinking, setThinking] = useState(false);
   const list = useRef<FlatList<Turn>>(null);
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
+  const recState = useAudioRecorderState(recorder, 150); // live level for the meter
+  const peak = useRef<number | null>(null); // loudest level heard during this recording
   const voice = useAudioPlayer(null); // plays Somni's spoken replies
   const [mic, setMic] = useState<'idle' | 'recording' | 'transcribing'>('idle');
 
@@ -72,6 +77,13 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
     const id = setTimeout(() => list.current?.scrollToEnd({ animated: true }), 50);
     return () => clearTimeout(id);
   }, [turns.length, thinking]);
+
+  // Track the loudest mic level while recording, to tell "you were quiet" from "the mic recorded nothing".
+  useEffect(() => {
+    if (mic === 'recording' && typeof recState.metering === 'number') {
+      peak.current = Math.max(peak.current ?? -160, recState.metering);
+    }
+  }, [mic, recState.metering]);
 
   const say = (text: string) => setTurns((prev) => [...prev, { role: 'somni', text, local: true }]);
 
@@ -109,17 +121,30 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
       const { granted } = await requestRecordingPermissionsAsync();
       if (!granted) return say('Allow microphone access in Settings to talk to me.');
       voice.pause();
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, interruptionMode: 'doNotMix' });
       await recorder.prepareToRecordAsync();
+      peak.current = null;
       recorder.record();
       setMic('recording');
       return;
     }
     setMic('transcribing');
     try {
+      const heldMs = recState.durationMillis;
       await recorder.stop();
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }); // replies play on the speaker
       if (!recorder.uri) throw new Error('no recording');
+      if (heldMs > 0 && heldMs < 700) {
+        setMic('idle');
+        return say('That was very short. Hold the mic, ask your question, then tap stop.');
+      }
+      if (peak.current !== null && peak.current < SILENCE_DB) {
+        setMic('idle');
+        return say(
+          `The mic didn't pick up any sound (peak ${Math.round(peak.current)} dB). Check Settings > Expo Go > ` +
+            'Microphone is on, take the phone off silent-mode headphones/Bluetooth, and try again.',
+        );
+      }
       const { text } = await api.transcribe(userId, recorder.uri);
       setMic('idle');
       await send(text, true);
@@ -201,6 +226,15 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
             <View style={styles.listening}>
               <View style={styles.liveDot} />
               <Text style={styles.listeningText}>Listening… tap stop to send</Text>
+              {/* live mic level: if this bar doesn't move when you talk, the phone isn't hearing you */}
+              <View style={styles.meterTrack}>
+                <View
+                  style={[
+                    styles.meterFill,
+                    { width: `${Math.round(Math.min(1, Math.max(0, ((recState.metering ?? -60) + 60) / 60)) * 100)}%` },
+                  ]}
+                />
+              </View>
             </View>
           ) : (
             <TextInput
@@ -344,5 +378,7 @@ const styles = StyleSheet.create({
   },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.down },
   listeningText: { fontFamily: fontFamily.medium, fontSize: 15, color: colors.text },
+  meterTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: colors.ringTrack, overflow: 'hidden' },
+  meterFill: { height: 6, borderRadius: 3, backgroundColor: colors.down },
   footer: { textAlign: 'center', paddingTop: 6, paddingBottom: spacing.lg },
 });
