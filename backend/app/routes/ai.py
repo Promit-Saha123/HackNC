@@ -4,9 +4,9 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
-from ..auth import require_self
-from ..integrations import elevenlabs, gemini, insight
-from ..models import Briefing, Insight
+from ..auth import check_rate, record_fail, require_self
+from ..integrations import elevenlabs, gemini, insight, somni
+from ..models import Briefing, ChatReply, ChatRequest, Insight
 from ..store import store
 
 router = APIRouter()
@@ -48,6 +48,20 @@ def weekly_insight(user_id: int):
     if overview is None:
         raise HTTPException(404, "unknown user")
     return insight.weekly_insight(user_id, overview.user.name, store.recent_nights(user_id, 28))
+
+
+@router.post("/ai/chat/{user_id}", response_model=ChatReply, dependencies=SELF_ONLY)
+def chat(user_id: int, body: ChatRequest):
+    """Somni chatbot: answers questions about the user's own Sleep Squad data only (see integrations/somni.py)."""
+    if not body.messages or body.messages[-1].role != "user" or not body.messages[-1].text.strip():
+        raise HTTPException(422, "send at least one message, ending with the user's question")
+    key = f"somni:{user_id}"
+    check_rate(key, 30, 300)  # 30 messages per 5 minutes per user: protects the Gemini quota
+    record_fail(key)
+    reply = somni.chat(user_id, body.messages)
+    if reply is None:
+        raise HTTPException(404, "unknown user")
+    return reply
 
 
 @router.get("/ai/audio/{file}")

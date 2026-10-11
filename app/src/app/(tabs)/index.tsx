@@ -10,6 +10,7 @@ import { Card, Divider } from '@/components/Card';
 import { IconCircle } from '@/components/IconCircle';
 import { Screen } from '@/components/Screen';
 import { SleepRing } from '@/components/SleepRing';
+import { SomniButton } from '@/components/SomniChat';
 import { CalendarSheet } from '@/components/sheets/CalendarSheet';
 import { InfoSheet, type Info } from '@/components/sheets/InfoSheet';
 import { LogSleepSheet } from '@/components/sheets/LogSleepSheet';
@@ -171,6 +172,7 @@ export default function HomeScreen() {
       <TargetsSheet visible={sheet === 'targets'} onClose={close} />
       <SquadSheet visible={sheet === 'squad'} onClose={close} backendSquad={overview?.user.squad} />
       <InfoSheet info={info} onClose={() => setInfo(null)} />
+      <SomniButton userId={userId} name={overview?.user.name} />
     </Screen>
   );
 }

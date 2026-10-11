@@ -220,6 +220,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ai/briefing/{user_id}/audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Briefing Audio
+         * @description The briefing read aloud by ElevenLabs (MP3, cached per briefing text).
+         */
+        get: operations["briefing_audio_ai_briefing__user_id__audio_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ai/insight/{user_id}": {
         parameters: {
             query?: never;
@@ -234,6 +254,26 @@ export interface paths {
         get: operations["weekly_insight_ai_insight__user_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ai/chat/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Chat
+         * @description Somni chatbot: answers questions about the user's own Sleep Squad data only (see integrations/somni.py).
+         */
+        post: operations["chat_ai_chat__user_id__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -483,6 +523,104 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/whoop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whoop Status */
+        get: operations["whoop_status_me_whoop_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Whoop Disconnect
+         * @description Revoke our access at WHOOP and forget the tokens. Nights already imported stay (they're the user's data).
+         */
+        delete: operations["whoop_disconnect_me_whoop_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/whoop/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Whoop Connect
+         * @description Returns the WHOOP consent URL for the app to open in a browser.
+         */
+        post: operations["whoop_connect_me_whoop_connect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/whoop/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whoop Callback
+         * @description WHOOP sends the user's browser here after consent. Public on purpose: the single-use state proves who started it.
+         */
+        get: operations["whoop_callback_whoop_callback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/whoop/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Whoop Sync */
+        post: operations["whoop_sync_me_whoop_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/whoop/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Whoop Webhook
+         * @description WHOOP pushes sleep.updated when a night is scored. Verify the signature, answer fast, sync in the background.
+         */
+        post: operations["whoop_webhook_whoop_webhook_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -495,6 +633,39 @@ export interface components {
             text: string;
             /** Audio Url */
             audio_url?: string | null;
+        };
+        /**
+         * ChatMessage
+         * @description One turn in a Somni chat (P2, POST /ai/chat/{user_id}).
+         */
+        ChatMessage: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "somni";
+            /** Text */
+            text: string;
+        };
+        /** ChatReply */
+        ChatReply: {
+            /** Reply */
+            reply: string;
+            /**
+             * Suggestions
+             * @default []
+             */
+            suggestions: string[];
+            /**
+             * In Scope
+             * @default true
+             */
+            in_scope: boolean;
+        };
+        /** ChatRequest */
+        ChatRequest: {
+            /** Messages */
+            messages: components["schemas"]["ChatMessage"][];
         };
         /**
          * FriendCard
@@ -969,6 +1140,39 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** WhoopConnectUrl */
+        WhoopConnectUrl: {
+            /** Url */
+            url: string;
+        };
+        /**
+         * WhoopStatus
+         * @description WHOOP connection for the Profile screen. Only sleep is ever read (scopes: read:sleep, read:profile, offline).
+         */
+        WhoopStatus: {
+            /**
+             * Configured
+             * @default true
+             */
+            configured: boolean;
+            /**
+             * Connected
+             * @default false
+             */
+            connected: boolean;
+            /** Last Sync At */
+            last_sync_at?: string | null;
+            /**
+             * Nights Synced
+             * @default 0
+             */
+            nights_synced: number;
+        };
+        /** WhoopSyncResult */
+        WhoopSyncResult: {
+            /** Nights Found */
+            nights_found: number;
+        };
     };
     responses: never;
     parameters: never;
@@ -1304,7 +1508,9 @@ export interface operations {
     briefing_ai_briefing__user_id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string;
+            };
             path: {
                 user_id: number;
             };
@@ -1332,10 +1538,45 @@ export interface operations {
             };
         };
     };
+    briefing_audio_ai_briefing__user_id__audio_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     weekly_insight_ai_insight__user_id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string;
+            };
             path: {
                 user_id: number;
             };
@@ -1350,6 +1591,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Insight"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_ai_chat__user_id__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatReply"];
                 };
             };
             /** @description Validation Error */
@@ -1873,6 +2151,191 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SyncStatus"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    whoop_status_me_whoop_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhoopStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    whoop_disconnect_me_whoop_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    whoop_connect_me_whoop_connect_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhoopConnectUrl"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    whoop_callback_whoop_callback_get: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    whoop_sync_me_whoop_sync_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhoopSyncResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    whoop_webhook_whoop_webhook_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-whoop-signature"?: string;
+                "x-whoop-signature-timestamp"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
