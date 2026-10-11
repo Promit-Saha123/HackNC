@@ -106,9 +106,6 @@ Expo Go cannot read Apple Health, and none of us has a Mac. An **iOS Shortcut** 
 - Splitting work across three people with branches, file ownership and small PRs
 
 ## Future Improvements
-- A native build with HealthKit and TestFlight instead of Expo Go and the Shortcut
-- Token checks on every endpoint (strict privacy mode is built but ships off)
-- Verifying WHOOP against a live account
 - Persistent rate limiting and a paid hosting plan so the API never sleeps
 - Push reminders to wind down before bedtime
 
