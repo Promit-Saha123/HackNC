@@ -22,7 +22,7 @@ function hexPoints(size: number, inset = 0) {
   }).join(' ');
 }
 
-/** Glossy hexagon badge. Locked badges are grey-navy with a lock in the corner. */
+/** Glossy hexagon badge. Locked badges are dark grey with a lock in the corner. */
 export function BadgeHex({ badge, unlocked, size = 56 }: { badge: BadgeKey; unlocked: boolean; size?: number }) {
   const id = `hex-${badge}-${size}`;
   return (
@@ -30,8 +30,8 @@ export function BadgeHex({ badge, unlocked, size = 56 }: { badge: BadgeKey; unlo
       <Svg width={size} height={size}>
         <Defs>
           <LinearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={colors.purple} />
-            <Stop offset="1" stopColor={colors.blue} />
+            <Stop offset="0" stopColor={colors.accent} />
+            <Stop offset="1" stopColor={colors.accentEnd} />
           </LinearGradient>
           <LinearGradient id={`${id}-gloss`} x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor="#FFFFFF" stopOpacity={unlocked ? 0.35 : 0.08} />
@@ -47,7 +47,7 @@ export function BadgeHex({ badge, unlocked, size = 56 }: { badge: BadgeKey; unlo
         <Polygon points={hexPoints(size, 3)} fill={`url(#${id}-gloss)`} />
       </Svg>
       <View style={styles.icon} pointerEvents="none">
-        <SymbolView name={ICONS[badge]} size={size * 0.42} tintColor={unlocked ? colors.text : colors.tabInactive} />
+        <SymbolView name={ICONS[badge]} size={size * 0.42} tintColor={unlocked ? colors.onAccent : colors.tabInactive} />
       </View>
       {!unlocked && (
         <View style={[styles.lock, { width: size * 0.36, height: size * 0.36, borderRadius: size * 0.18 }]}>
@@ -60,8 +60,8 @@ export function BadgeHex({ badge, unlocked, size = 56 }: { badge: BadgeKey; unlo
 
 const styles = StyleSheet.create({
   glow: {
-    shadowColor: colors.purple,
-    shadowOpacity: 0.45,
+    shadowColor: colors.glow,
+    shadowOpacity: 0.25,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 0 },
   },

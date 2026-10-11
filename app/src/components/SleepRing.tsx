@@ -47,13 +47,20 @@ export function SleepRing({ size, score, stages, sleep, target, onPress }: Props
     if (ready) progress.value = withTiming(1, { duration: 1000, easing: Easing.out(Easing.cubic) });
   }, [ready, progress]);
 
+  // Geometry as fractions of `size`: glow pad, outer stroke, numeral gap, inner stroke.
   const c = size / 2;
-  const pad = size * 0.05;
-  const s1 = size * 0.06;
+  const pad = size * 0.04;
+  const s1 = size * 0.05;
+  const gap = size * 0.09;
+  const s2 = size * 0.055;
   const r1 = c - pad - s1 / 2;
-  const labelR = r1 - s1 / 2 - size * 0.055;
-  const s2 = size * 0.075;
-  const r2 = r1 - s1 / 2 - size * 0.11 - s2 / 2;
+  const labelR = r1 - s1 / 2 - gap / 2;
+  const r2 = r1 - s1 / 2 - gap - s2 / 2;
+  // Clear space inside the stage ring; the center text is sized to sit well inside it.
+  const hole = 2 * (r2 - s2 / 2);
+  const scoreSize = hole * 0.3;
+  const labelText = Math.max(10, hole * 0.095);
+  const hintText = Math.max(9, hole * 0.07);
 
   const total = stages ? stages.deep + stages.light + stages.rem + stages.awake : 0;
   let cursor = 0;
@@ -66,15 +73,15 @@ export function SleepRing({ size, score, stages, sleep, target, onPress }: Props
       })
     : [];
 
-  const labelSize = Math.max(9, size * 0.045);
+  const labelSize = Math.max(9, size * 0.04);
 
   return (
     <Pressable onPress={onPress} disabled={!onPress} style={({ pressed }) => [{ width: size, height: size }, pressed && styles.pressed]}>
       <Svg width={size} height={size}>
         <Defs>
           <LinearGradient id="night" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={colors.purple} />
-            <Stop offset="1" stopColor={colors.blue} />
+            <Stop offset="0" stopColor={colors.accent} />
+            <Stop offset="1" stopColor={colors.accentEnd} />
           </LinearGradient>
         </Defs>
 
@@ -83,7 +90,7 @@ export function SleepRing({ size, score, stages, sleep, target, onPress }: Props
         <Arc c={c} r={r1} width={s1} color={colors.dimBar} start={clockDeg(target.bed)} sweep={sweepDeg(target)} progress={null} round />
         {sleep && (
           <>
-            <Arc c={c} r={r1} width={s1 + size * 0.05} color="url(#night)" opacity={0.22} start={clockDeg(sleep.bed)} sweep={sweepDeg(sleep)} progress={progress} round />
+            <Arc c={c} r={r1} width={s1 + size * 0.04} color="url(#night)" opacity={0.16} start={clockDeg(sleep.bed)} sweep={sweepDeg(sleep)} progress={progress} round />
             <Arc c={c} r={r1} width={s1} color="url(#night)" start={clockDeg(sleep.bed)} sweep={sweepDeg(sleep)} progress={progress} round />
           </>
         )}
@@ -111,9 +118,10 @@ export function SleepRing({ size, score, stages, sleep, target, onPress }: Props
               styles.numeral,
               {
                 fontSize: labelSize,
+                lineHeight: labelSize * 1.2,
                 width: box,
                 left: c + labelR * Math.cos(rad) - box / 2,
-                top: c + labelR * Math.sin(rad) - labelSize * 0.7,
+                top: c + labelR * Math.sin(rad) - (labelSize * 1.2) / 2,
               },
             ]}>
             {n}
@@ -122,9 +130,19 @@ export function SleepRing({ size, score, stages, sleep, target, onPress }: Props
       })}
 
       <View style={styles.center} pointerEvents="none">
-        <Text style={[styles.label, { fontSize: Math.max(11, size * 0.055) }]}>Rest score</Text>
-        <Text style={[styles.score, { fontSize: size * 0.17 }]}>{score == null ? '--' : `${Math.round(score)}%`}</Text>
-        <Text style={[styles.hint, { fontSize: Math.max(9, size * 0.04) }]}>Tap for details</Text>
+        <View style={{ width: hole * 0.86, alignItems: 'center' }}>
+          <Text style={[styles.label, { fontSize: labelText, lineHeight: labelText * 1.25 }]}>Rest score</Text>
+          <Text
+            style={[styles.score, { fontSize: scoreSize, lineHeight: scoreSize * 1.12 }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit>
+            {score == null ? '--' : Math.round(score)}
+            {score != null && <Text style={[styles.percent, { fontSize: scoreSize * 0.45 }]}>%</Text>}
+          </Text>
+          {hole >= 110 && (
+            <Text style={[styles.hint, { fontSize: hintText, lineHeight: hintText * 1.3 }]}>Tap for details</Text>
+          )}
+        </View>
       </View>
     </Pressable>
   );
@@ -172,6 +190,7 @@ const styles = StyleSheet.create({
   numeral: { position: 'absolute', textAlign: 'center', color: colors.tabInactive, fontFamily: fontFamily.medium },
   center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   label: { color: colors.textSoft, fontFamily: fontFamily.medium },
-  score: { color: colors.text, fontFamily: fontFamily.bold, fontVariant: ['tabular-nums'] },
+  score: { color: colors.text, fontFamily: fontFamily.bold, fontVariant: ['tabular-nums'], letterSpacing: -1 },
+  percent: { color: colors.textSoft, fontFamily: fontFamily.semibold, letterSpacing: 0 },
   hint: { color: colors.tabInactive, fontFamily: fontFamily.regular },
 });

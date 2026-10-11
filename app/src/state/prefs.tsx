@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 
 import { DEFAULT_GOALS } from '@/data/sample';
+import { useUser } from '@/state/user';
 
 export type Goals = {
   /** Minutes after midnight. */
@@ -26,8 +27,14 @@ type Prefs = {
 
 const PrefsContext = createContext<Prefs | null>(null);
 
-// TODO(P1/P2): these live only in memory for now. Goals, manual logs and squads need backend endpoints.
+/** Prefs belong to the signed-in user: switching accounts starts fresh. */
 export function PrefsProvider({ children }: { children: ReactNode }) {
+  const { userId } = useUser();
+  return <UserPrefs key={userId}>{children}</UserPrefs>;
+}
+
+// TODO(P1/P2): these live only in memory for now. Goals, manual logs and squads need backend endpoints.
+function UserPrefs({ children }: { children: ReactNode }) {
   const [goals, setGoals] = useState<Goals>(DEFAULT_GOALS);
   const [logs, setLogs] = useState<ManualLog[]>([]);
   const [squad, setSquad] = useState<Squad | null>(null);

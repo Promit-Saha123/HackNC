@@ -77,12 +77,20 @@ function CalendarBody({ entries, initialDay }: { entries: DayEntry[]; initialDay
             <Pressable key={key} style={styles.cell} disabled={future} onPress={() => setSelected(key)}>
               <View style={styles.dayCircle}>
                 {isSel && <LinearGradient colors={gradient} style={[StyleSheet.absoluteFill, styles.round]} />}
-                <Text style={[styles.dayText, future && styles.future, key === todayKey && !isSel && styles.today]}>{d}</Text>
+                <Text
+                  style={[
+                    styles.dayText,
+                    future && styles.future,
+                    key === todayKey && !isSel && styles.today,
+                    isSel && styles.selectedText,
+                  ]}>
+                  {d}
+                </Text>
               </View>
               <View
                 style={[
                   styles.dot,
-                  e && { backgroundColor: e.score != null ? colors[scoreBand(e.score)] : colors.textSoft },
+                  e && (e.score != null ? { backgroundColor: colors[scoreBand(e.score)] } : styles.dotHollow),
                 ]}
               />
             </Pressable>
@@ -120,7 +128,7 @@ function CalendarBody({ entries, initialDay }: { entries: DayEntry[]; initialDay
           </View>
         ))}
         <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: colors.textSoft }]} />
+          <View style={[styles.dot, styles.dotHollow]} />
           <Text style={t.caption}>Logged</Text>
         </View>
       </View>
@@ -147,8 +155,10 @@ const styles = StyleSheet.create({
   round: { borderRadius: 17 },
   dayText: { fontFamily: fontFamily.medium, fontSize: 15, color: colors.text },
   future: { color: colors.dimBar },
-  today: { color: colors.tabActive },
+  today: { color: colors.tabActive, textDecorationLine: 'underline' },
+  selectedText: { color: colors.onAccent, fontFamily: fontFamily.bold },
   dot: { width: 6, height: 6, borderRadius: 3 },
+  dotHollow: { borderWidth: 1, borderColor: colors.text },
   detail: { gap: 4, marginTop: 6 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   legend: { flexDirection: 'row', justifyContent: 'center', gap: 14 },

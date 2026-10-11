@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { LeaderboardEntry } from '@/api/types';
 import { Avatar } from '@/components/Avatar';
+import { RankChange } from '@/components/RankChange';
 import { colors } from '@/theme/colors';
 import { fontFamily } from '@/theme/fonts';
 
@@ -12,6 +13,8 @@ type Props = {
   meId: number;
   /** Text under each name (score, or "+12" for most improved). */
   valueOf: (e: LeaderboardEntry) => string;
+  /** Places moved since yesterday; omit to hide the arrows. */
+  delta?: (e: LeaderboardEntry) => number;
   onPress: (e: LeaderboardEntry) => void;
 };
 
@@ -22,7 +25,7 @@ const SPOT = {
 } as const;
 
 /** Top three: 2nd on the left, 1st in the middle (with a crown), 3rd on the right. */
-export function Podium({ top, meId, valueOf, onPress }: Props) {
+export function Podium({ top, meId, valueOf, delta, onPress }: Props) {
   const order = [top[1], top[0], top[2]].filter(Boolean);
   return (
     <View style={styles.row}>
@@ -33,7 +36,7 @@ export function Podium({ top, meId, valueOf, onPress }: Props) {
         return (
           <Pressable key={e.user_id} style={({ pressed }) => [styles.col, pressed && styles.pressed]} onPress={() => onPress(e)}>
             {place === 1 ? (
-              <SymbolView name="crown.fill" size={26} tintColor="#FFD166" />
+              <SymbolView name="crown.fill" size={26} tintColor={colors.accent} />
             ) : (
               <View style={styles.crownSpace} />
             )}
@@ -47,9 +50,10 @@ export function Podium({ top, meId, valueOf, onPress }: Props) {
               {me ? 'You' : e.name}
             </Text>
             <Text style={styles.value}>{valueOf(e)}</Text>
+            {delta && <RankChange delta={delta(e)} />}
             <View style={[styles.block, { height: spot.block }]}>
               <LinearGradient
-                colors={place === 1 ? ['rgba(126,68,252,0.55)', 'rgba(20,118,253,0.12)'] : ['rgba(20,118,253,0.35)', 'rgba(20,118,253,0.06)']}
+                colors={place === 1 ? ['rgba(255,255,255,0.28)', 'rgba(255,255,255,0.04)'] : ['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.02)']}
                 style={StyleSheet.absoluteFill}
               />
               <Text style={styles.blockNum}>{place}</Text>
@@ -74,13 +78,13 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: colors.blue,
+    backgroundColor: colors.accent,
     borderWidth: 2,
     borderColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeText: { color: colors.text, fontFamily: fontFamily.bold, fontSize: 11 },
+  badgeText: { color: colors.onAccent, fontFamily: fontFamily.bold, fontSize: 11 },
   name: { marginTop: 8, fontFamily: fontFamily.semibold, fontSize: 15, color: colors.text, maxWidth: '100%' },
   me: { color: colors.unlockedText },
   value: { fontFamily: fontFamily.bold, fontSize: 16, color: colors.textSoft, fontVariant: ['tabular-nums'] },

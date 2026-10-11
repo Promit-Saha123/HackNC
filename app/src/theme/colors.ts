@@ -1,44 +1,50 @@
-// Dark navy palette from app design & sitemap (docs: "Design system > Colors").
+// Deep black + white/gray palette. Color is kept only where it carries meaning (up, connected, danger).
 export const colors = {
-  bg: '#010D21',
-  edgeGlow: '#05142D',
-  card: '#041633',
-  cardSheen: '#0A1D45',
-  raised: '#18274B',
-  highlight: '#141F52',
-  tabBar: '#010B1F',
-  border: '#1D3B7C',
-  divider: '#182058',
+  bg: '#000000',
+  edgeGlow: '#0B0B0C',
+  card: '#101011',
+  cardSheen: '#18181A',
+  raised: '#222224',
+  highlight: '#1B1B1D',
+  tabBar: '#050505',
+  border: '#2A2A2D',
+  divider: '#1E1E20',
 
-  text: '#F5F6F7',
-  textSoft: '#8B93D6',
-  tabInactive: '#718DCF',
-  tabActive: '#3B8CFF',
+  text: '#F5F5F5',
+  textSoft: '#9B9BA0',
+  tabInactive: '#6B6B70',
+  tabActive: '#FFFFFF',
 
-  purple: '#7E44FC',
-  blue: '#1476FD',
-  avatarStart: '#0FB2FE',
+  /** Accent gradient runs accent -> accentEnd (white to gray). */
+  accent: '#FFFFFF',
+  accentEnd: '#8E8E93',
+  /** Text and icons drawn on top of the light accent. */
+  onAccent: '#000000',
+  avatarStart: '#FFFFFF',
+  glow: '#FFFFFF',
 
-  switcherBg: '#041336',
-  switcherText: '#0A1630',
-  dimBar: '#253456',
-  ringTrack: '#0B1A3A',
-  badgeLocked: '#19264A',
+  switcherBg: '#0E0E0F',
+  switcherText: '#000000',
+  dimBar: '#2C2C2F',
+  ringTrack: '#151517',
+  badgeLocked: '#19191B',
+  backdrop: 'rgba(0,0,0,0.7)',
 
-  excellent: '#7365FD',
-  moderate: '#238EFE',
-  low: '#FB4FCE',
+  excellent: '#F5F5F5',
+  moderate: '#A1A1A6',
+  low: '#5A5A5F',
 
-  up: '#00D1A5',
-  connected: '#1FE191',
-  toggleOn: '#775DFD',
-  unlockedBg: '#0F3C8F',
-  unlockedText: '#38C8FF',
-  danger: '#FF4D6A',
+  up: '#4ADE80',
+  down: '#FF6B6B',
+  connected: '#4ADE80',
+  toggleOn: '#F5F5F5',
+  unlockedBg: '#2A2A2D',
+  unlockedText: '#FFFFFF',
+  danger: '#FF5A5F',
 } as const;
 
-/** Main accent gradient, purple to blue. */
-export const gradient = [colors.purple, colors.blue] as const;
+/** Main accent gradient, white to gray. */
+export const gradient = [colors.accent, colors.accentEnd] as const;
 
 export type ScoreBand = 'excellent' | 'moderate' | 'low';
 

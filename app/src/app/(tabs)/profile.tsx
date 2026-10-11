@@ -13,6 +13,7 @@ import { SquadSheet } from '@/components/sheets/SquadSheet';
 import { TargetsSheet } from '@/components/sheets/TargetsSheet';
 import { useOverview } from '@/hooks/use-overview';
 import { usePrefs } from '@/state/prefs';
+import { useUser } from '@/state/user';
 import { colors } from '@/theme/colors';
 import { fontFamily, type as t } from '@/theme/fonts';
 import { spacing } from '@/theme/spacing';
@@ -24,6 +25,7 @@ type SheetKey = 'targets' | 'squad' | 'log';
 export default function ProfileScreen() {
   const { overview, error, refreshing, refresh } = useOverview();
   const { goals, squad } = usePrefs();
+  const { signOut } = useUser();
   const [sheet, setSheet] = useState<SheetKey | null>(null);
   const [info, setInfo] = useState<Info | null>(null);
   // TODO(P1): persist these on the backend; local only for now.
@@ -200,6 +202,17 @@ export default function ProfileScreen() {
         <Text style={styles.deleteText}>Delete my data</Text>
       </Pressable>
 
+      <Card padding={0}>
+        <Row
+          icon={<IconCircle name="rectangle.portrait.and.arrow.right" />}
+          title="Log out"
+          onPress={() => {
+            signOut();
+            router.replace('/login');
+          }}
+        />
+      </Card>
+
       <Text style={[t.caption, styles.note]}>Sleep Squad is not medical advice.</Text>
 
       <TargetsSheet visible={sheet === 'targets'} onClose={close} />
@@ -251,7 +264,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
       onValueChange={onChange}
       trackColor={{ false: colors.dimBar, true: colors.toggleOn }}
       ios_backgroundColor={colors.dimBar}
-      thumbColor="#FFFFFF"
+      thumbColor={value ? colors.onAccent : '#FFFFFF'}
     />
   );
 }

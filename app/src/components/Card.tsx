@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     overflow: 'hidden',
   },
-  highlight: { borderColor: colors.purple },
+  highlight: { borderColor: colors.accent },
   pressed: { opacity: 0.8 },
   divider: { height: 1, backgroundColor: colors.divider },
 });

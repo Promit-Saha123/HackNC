@@ -167,8 +167,8 @@ function StreakRing({ value }: { value: number }) {
       <Svg width={size} height={size}>
         <Defs>
           <LinearGradient id="streak" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={colors.purple} />
-            <Stop offset="1" stopColor={colors.blue} />
+            <Stop offset="0" stopColor={colors.accent} />
+            <Stop offset="1" stopColor={colors.accentEnd} />
           </LinearGradient>
         </Defs>
         <Circle cx={size / 2} cy={size / 2} r={r} stroke={colors.ringTrack} strokeWidth={stroke} fill="none" />

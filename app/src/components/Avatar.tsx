@@ -13,7 +13,7 @@ export function Avatar({ name, size = 40, glow = true }: Props) {
   return (
     <View style={[glow && styles.glow, { width: size, height: size, borderRadius: size / 2 }]}>
       <LinearGradient
-        colors={[colors.avatarStart, colors.purple]}
+        colors={[colors.accent, colors.accentEnd]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.ring, { width: size, height: size, borderRadius: size / 2 }]}>
@@ -27,8 +27,8 @@ export function Avatar({ name, size = 40, glow = true }: Props) {
 
 const styles = StyleSheet.create({
   glow: {
-    shadowColor: colors.purple,
-    shadowOpacity: 0.4,
+    shadowColor: colors.glow,
+    shadowOpacity: 0.22,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 0 },
   },

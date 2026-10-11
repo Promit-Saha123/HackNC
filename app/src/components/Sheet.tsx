@@ -32,7 +32,7 @@ export function Sheet({ visible, onClose, title, subtitle, children }: Props) {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(1,13,33,0.6)' },
+  backdrop: { flex: 1, backgroundColor: colors.backdrop },
   sheet: {
     maxHeight: '88%',
     backgroundColor: colors.card,

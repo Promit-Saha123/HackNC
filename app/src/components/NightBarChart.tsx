@@ -48,7 +48,7 @@ export function NightBarChart({ bars, ticks, band, marker, selected, onSelect }:
               ]}
             />
           )}
-          {marker != null && <DashedLine y={marker * PLOT_HEIGHT} color={colors.purple} thick />}
+          {marker != null && <DashedLine y={marker * PLOT_HEIGHT} color={colors.accent} thick />}
           <View style={styles.bars}>
             {bars.map((b, i) => (
               <Pressable key={b.key} style={styles.column} onPress={() => onSelect(i)} hitSlop={6}>
@@ -99,7 +99,7 @@ function Bar({ bar, dimmed }: { bar: ChartBar; dimmed: boolean }) {
       )}
       {bar.bright && tall && (
         <View style={styles.moon}>
-          <SymbolView name="moon.fill" size={14} tintColor={colors.text} />
+          <SymbolView name="moon.fill" size={14} tintColor={colors.onAccent} />
         </View>
       )}
     </Animated.View>
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row' },
   plot: { flex: 1, height: PLOT_HEIGHT },
   axis: { width: AXIS_WIDTH, height: PLOT_HEIGHT + 14, marginTop: -7, justifyContent: 'space-between', alignItems: 'flex-end' },
-  band: { position: 'absolute', left: 0, right: 0, backgroundColor: 'rgba(126,68,252,0.12)', borderRadius: 6 },
+  band: { position: 'absolute', left: 0, right: 0, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 6 },
   dashRow: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', overflow: 'hidden' },
   bars: { ...StyleSheet.absoluteFill, flexDirection: 'row', justifyContent: 'space-around' },
   column: { width: BAR_WIDTH, height: PLOT_HEIGHT },

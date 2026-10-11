@@ -1,10 +1,9 @@
 import { useFonts } from 'expo-font';
-import { DarkTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
-import AppTabs from '@/components/app-tabs';
 import { PrefsProvider } from '@/state/prefs';
 import { UserProvider } from '@/state/user';
 import { colors } from '@/theme/colors';
@@ -32,7 +31,10 @@ export default function RootLayout() {
       <UserProvider>
         <PrefsProvider>
           <StatusBar style="light" />
-          <AppTabs />
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, animation: 'fade' }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="login" options={{ gestureEnabled: false }} />
+          </Stack>
         </PrefsProvider>
       </UserProvider>
     </ThemeProvider>
