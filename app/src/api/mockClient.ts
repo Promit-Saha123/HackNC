@@ -305,4 +305,48 @@ export const mockClient: Api = {
     delete syncedAt[u.id];
     signedIn = null;
   },
+
+  transcribe: async () => {
+    await new Promise((r) => setTimeout(r, 600));
+    return { text: 'How can I climb the leaderboard?' }; // mock "heard" question
+  },
+  chat: async (userId, messages) => {
+    await new Promise((r) => setTimeout(r, 700)); // feel like a real reply
+    return mockSomni(userId, messages[messages.length - 1]?.text ?? '');
+  },
 };
+
+// --- Mock Somni: keyword answers from the fixtures, with the same scope rules as the real one. ---
+const SUGGESTIONS = ['Why did my score change?', "How's my streak going?", 'How can I climb the leaderboard?'];
+const MEDICAL = /melatonin|insomnia|apnea|pill|medic|supplement|doctor|depress|anxiety|drug/i;
+const SLEEP = /sleep|score|streak|badge|bed|wake|night|rank|leader|squad|beat|catch|goal|tired|nap|rest|week/i;
+
+function mockSomni(userId: number, question: string) {
+  const o = overviews[userId];
+  if (MEDICAL.test(question)) {
+    return {
+      reply: "I can't help with medical questions or supplements. Please talk to a doctor or campus health about that.",
+      suggestions: SUGGESTIONS,
+      in_scope: false,
+    };
+  }
+  if (!SLEEP.test(question) || !o) {
+    return { reply: 'I can only help with your sleep and your Somnia data.', suggestions: SUGGESTIONS, in_scope: false };
+  }
+  const s = o.score;
+  const hours = ((o.last_night?.duration_min ?? 0) / 60).toFixed(1);
+  let reply = `Last night you slept ${hours} hours and scored ${Math.round(s?.score ?? 0)}, and your streak is ${o.streak_days} nights.`;
+  if (/rank|leader|beat|catch/i.test(question)) {
+    const me = leaderboard.find((e) => e.user_id === userId);
+    const ahead = me && leaderboard.find((e) => e.rank === me.rank - 1);
+    reply = me
+      ? `You're #${me.rank} this week with a ${Math.round(me.score)} average.` +
+        (ahead ? ` ${ahead.name} is just ahead at ${Math.round(ahead.score)}, so a couple of full nights could close the gap.` : " You're in first, keep it up!")
+      : "You're not on this week's board yet.";
+  } else if (/streak|badge/i.test(question)) {
+    reply = `Your streak is ${o.streak_days} nights (best ever ${o.best_streak}). A streak night is 7+ hours within an hour of your usual bedtime.`;
+  } else if (/score|low|drop|why/i.test(question) && s) {
+    reply = `You scored ${Math.round(s.score)}: duration ${Math.round(s.duration_pts)}/40, consistency ${Math.round(s.consistency_pts)}/30, quality ${Math.round(s.quality_pts)}/20 and streak ${Math.round(s.streak_pts)}/10.`;
+  }
+  return { reply, suggestions: SUGGESTIONS, in_scope: true };
+}

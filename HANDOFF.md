@@ -64,6 +64,8 @@ Last updated: 2026-10-11, Pranav (P3). Deadline: Devpost 10:00 AM Sun Oct 11, su
 - **P3 Pranav:** `p3/api-catchup` PR open; phone-test against Render (mocks off), merge.
 - **P1 Promit:** iOS Shortcut + real sync test through the tunnel.
 - **P2 Sharvil:** Devpost, `docs/`, demo video. ElevenLabs Listen button merged (#23; plays when the backend has an ElevenLabs key).
+- **P2 chat + voice (PRs #25, #27, merged):** in-app chatbot Somni (`SomniChat.tsx`, sparkles icon in the Home header) that answers from the user's own data, plus voice (mic -> ElevenLabs speech-to-text -> reply read aloud). Render's `ELEVENLABS_API_KEY` needs Speech to Text enabled. P3 to review the chat UI.
+- **P1 Promit:** WHOOP backend merged (#24), `scripts/smoke_demo.py` pre-demo smoke test (#26).
 
 ## Next up
 - **Everyone:** phone-test `p3/api-catchup` in Expo Go (QR command below).

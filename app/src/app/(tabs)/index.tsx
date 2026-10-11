@@ -13,6 +13,7 @@ import { IconCircle } from '@/components/IconCircle';
 import { InsightCard } from '@/components/InsightCard';
 import { Screen, Section } from '@/components/Screen';
 import { SleepRing } from '@/components/SleepRing';
+import { SomniButton } from '@/components/SomniChat';
 import { CalendarSheet } from '@/components/sheets/CalendarSheet';
 import { InfoSheet, type Info } from '@/components/sheets/InfoSheet';
 import { LogSleepSheet } from '@/components/sheets/LogSleepSheet';
@@ -86,6 +87,7 @@ export default function HomeScreen() {
       onRefresh={refresh}
       right={
         <>
+          <SomniButton userId={userId} name={overview?.user.name} />
           <GlassIconButton onPress={() => openCalendar(null)}>
             <SymbolView name="calendar" size={20} tintColor={colors.text} />
           </GlassIconButton>
