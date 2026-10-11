@@ -104,9 +104,13 @@ class Store:
             user=user,
             last_night=nights[-1],
             score=scores[-1],
-            history=[NightScore(day=n.day, score=s.score) for n, s in zip(nights[-7:], scores[-7:])],
+            history=[
+                NightScore(day=n.day, score=s.score, bedtime=n.bedtime, wake_time=n.wake_time)
+                for n, s in zip(nights[-7:], scores[-7:])
+            ],
             streak_days=streak,
             badge=badge_for(streak),
+            best_streak=max(s.streak_days for s in scores),
         )
 
     def weekly_avgs(self, monday: date) -> dict[int, float]:
@@ -119,14 +123,15 @@ class Store:
                 out[uid] = mean(vals)
         return out
 
-    def leaderboard(self, period: str, squad: str | None) -> Leaderboard:
+    def leaderboard(self, period: str, squad: str | None, before: date = date.max) -> Leaderboard:
+        """`before` drops nights on/after that wake date (rank as of an earlier day)."""
         today = date.today()
         since = today - timedelta(days=today.weekday()) if period == "week" else date.min  # week resets Monday
         rows = []
         for uid, user in self.users.items():
             if squad and (user.squad or "").lower() != squad.lower():
                 continue
-            vals = [s.score for n, s in zip(self.nights[uid], self.scores[uid]) if n.day >= since]
+            vals = [s.score for n, s in zip(self.nights[uid], self.scores[uid]) if since <= n.day < before]
             if vals:
                 streak = self.scores[uid][-1].streak_days
                 rows.append((round(mean(vals), 1), user, streak))
@@ -211,17 +216,21 @@ class SqlStore:
             if last is None:
                 return Overview(user=user)
             recent = c.execute(
-                f"SELECT time::date AS day, {SCORE_COLS} FROM daily_scores WHERE user_id = %s"
-                " ORDER BY time DESC LIMIT 7", (uid,)
+                f"SELECT d.time::date AS day, {SCORE_COLS},"
+                " s.time AS bedtime, s.end_time AS wake_time FROM daily_scores d"
+                " LEFT JOIN sleep_sessions s ON s.user_id = d.user_id AND s.end_time::date = d.time::date"
+                " WHERE d.user_id = %s ORDER BY d.time DESC LIMIT 7", (uid,)
             ).fetchall()[::-1]  # oldest first
+            best = c.execute("SELECT max(streak_days) AS m FROM daily_scores WHERE user_id = %s", (uid,)).fetchone()["m"]
         score = ScoreBreakdown(**{k: recent[-1][k] for k in ScoreBreakdown.model_fields})
         return Overview(
             user=user,
             last_night=_night(last),
             score=score,
-            history=[NightScore(day=r["day"], score=r["score"]) for r in recent],
+            history=[NightScore(**_naive({k: r[k] for k in ("day", "score", "bedtime", "wake_time")})) for r in recent],
             streak_days=score.streak_days,
             badge=badge_for(score.streak_days),
+            best_streak=best,
         )
 
     def weekly_avgs(self, monday: date) -> dict[int, float]:
@@ -230,7 +239,7 @@ class SqlStore:
             rows = c.execute("SELECT user_id, avg_score FROM weekly_leaderboard WHERE week = %s", (monday,))
             return {r["user_id"]: r["avg_score"] for r in rows}
 
-    def leaderboard(self, period: str, squad: str | None) -> Leaderboard:
+    def leaderboard(self, period: str, squad: str | None, before: date = date(9999, 12, 31)) -> Leaderboard:
         today = date.today()
         since = today - timedelta(days=today.weekday()) if period == "week" else date(1970, 1, 1)
         with get_pool().connection() as c:
@@ -238,9 +247,9 @@ class SqlStore:
                 "SELECT u.id, u.name, u.squad, avg(d.score)::float AS score,"
                 " (SELECT streak_days FROM daily_scores WHERE user_id = u.id ORDER BY time DESC LIMIT 1) AS streak"
                 " FROM users u JOIN daily_scores d ON d.user_id = u.id"
-                " WHERE d.time >= %s AND (%s::text IS NULL OR lower(u.squad) = lower(%s))"
+                " WHERE d.time >= %s AND d.time::date < %s AND (%s::text IS NULL OR lower(u.squad) = lower(%s))"
                 " GROUP BY u.id ORDER BY score DESC, u.name",
-                (since, squad, squad),
+                (since, before, squad, squad),
             ).fetchall()
         entries = [
             LeaderboardEntry(

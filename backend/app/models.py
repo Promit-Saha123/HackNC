@@ -41,6 +41,8 @@ class ScoreBreakdown(BaseModel):
 class NightScore(BaseModel):
     day: dt.date
     score: float
+    bedtime: dt.datetime | None = None
+    wake_time: dt.datetime | None = None
 
 
 class Overview(BaseModel):
@@ -50,6 +52,7 @@ class Overview(BaseModel):
     history: list[NightScore] = []  # last 7 nights, oldest first
     streak_days: int = 0
     badge: str | None = None  # moon | cloud | rainbow | aurora
+    best_streak: int = 0
 
 
 class LeaderboardEntry(BaseModel):
@@ -60,6 +63,7 @@ class LeaderboardEntry(BaseModel):
     score: float
     streak_days: int
     badge: str | None = None
+    prev_rank: int | None = None  # rank before last night (week/all); None = not ranked then
     delta: float | None = None  # period=improved only: this week's average minus last week's
 
 
