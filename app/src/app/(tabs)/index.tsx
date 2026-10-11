@@ -83,6 +83,7 @@ export default function HomeScreen() {
       subtitle={error ? "Can't reach the backend" : longDate()}
       right={
         <>
+          <SomniButton userId={userId} name={overview?.user.name} />
           <Pressable
             hitSlop={8}
             onPress={() => openCalendar(null)}
@@ -172,7 +173,6 @@ export default function HomeScreen() {
       <TargetsSheet visible={sheet === 'targets'} onClose={close} />
       <SquadSheet visible={sheet === 'squad'} onClose={close} backendSquad={overview?.user.squad} />
       <InfoSheet info={info} onClose={() => setInfo(null)} />
-      <SomniButton userId={userId} name={overview?.user.name} />
     </Screen>
   );
 }

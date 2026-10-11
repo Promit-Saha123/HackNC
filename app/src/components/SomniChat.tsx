@@ -1,3 +1,10 @@
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioPlayer,
+  useAudioRecorder,
+} from 'expo-audio';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -14,7 +21,7 @@ import {
   View,
 } from 'react-native';
 
-import { ApiError, api } from '@/api/client';
+import { ApiError, api, authHeaders } from '@/api/client';
 import type { ChatMessage } from '@/api/types';
 import { colors } from '@/theme/colors';
 import { fontFamily, type as t } from '@/theme/fonts';
@@ -24,7 +31,7 @@ const STARTERS = ['Why did my score change?', "How's my streak going?", 'How can
 
 type Turn = ChatMessage & { local?: boolean }; // local = greeting/errors shown in the UI but never sent to the API
 
-/** Floating "Ask Somni" button for Home; opens the Somni chat sheet. */
+/** Somni icon for the Home header (next to the calendar); opens the Somni chat sheet (type or talk). */
 export function SomniButton({ userId, name }: { userId: number; name?: string }) {
   const [open, setOpen] = useState(false);
   return (
@@ -32,10 +39,10 @@ export function SomniButton({ userId, name }: { userId: number; name?: string })
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Ask Somni, your sleep coach"
+        hitSlop={8}
         onPress={() => setOpen(true)}
-        style={({ pressed }) => [styles.fab, pressed && styles.pressed]}>
-        <SymbolView name="sparkles" size={16} tintColor={colors.onAccent} />
-        <Text style={styles.fabText}>Ask Somni</Text>
+        style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}>
+        <SymbolView name="sparkles" size={20} tintColor={colors.text} />
       </Pressable>
       {/* key: a different user starts a fresh conversation */}
       <SomniChat key={userId} visible={open} onClose={() => setOpen(false)} userId={userId} name={name} />
@@ -45,7 +52,10 @@ export function SomniButton({ userId, name }: { userId: number; name?: string })
 
 type Props = { visible: boolean; onClose: () => void; userId: number; name?: string };
 
-/** Somni chat: Gemini answers about the user's own Sleep Squad data only (backend: POST /ai/chat/{id}). */
+/**
+ * Somni chat: Gemini answers about the user's own Sleep Squad data only (backend: POST /ai/chat/{id}).
+ * Voice: tap the mic, speak, tap again. ElevenLabs transcribes the question and Somni's reply is spoken back.
+ */
 export function SomniChat({ visible, onClose, userId, name }: Props) {
   const greeting = `Hi${name ? ` ${name.split(' ')[0]}` : ''}! I'm Somni. Ask me anything about your sleep, scores, streaks or squad.`;
   const [turns, setTurns] = useState<Turn[]>([{ role: 'somni', text: greeting, local: true }]);
@@ -53,6 +63,9 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
   const [draft, setDraft] = useState('');
   const [thinking, setThinking] = useState(false);
   const list = useRef<FlatList<Turn>>(null);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const voice = useAudioPlayer(null); // plays Somni's spoken replies
+  const [mic, setMic] = useState<'idle' | 'recording' | 'transcribing'>('idle');
 
   // Keep the newest message in view.
   useEffect(() => {
@@ -60,7 +73,9 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
     return () => clearTimeout(id);
   }, [turns.length, thinking]);
 
-  const send = async (text: string) => {
+  const say = (text: string) => setTurns((prev) => [...prev, { role: 'somni', text, local: true }]);
+
+  const send = async (text: string, speak = false) => {
     const question = text.trim();
     if (!question || thinking) return;
     const history: Turn[] = [...turns, { role: 'user', text: question }];
@@ -69,22 +84,62 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
     setThinking(true);
     try {
       const sent = history.filter((m) => !m.local).map(({ role, text: body }) => ({ role, text: body }));
-      const r = await api.chat(userId, sent);
+      const r = await api.chat(userId, sent, { speak });
       setTurns((prev) => [...prev, { role: 'somni', text: r.reply }]);
       setSuggestions(r.suggestions.length ? r.suggestions : STARTERS);
+      if (speak && r.audio_url) {
+        voice.replace({ uri: r.audio_url, headers: authHeaders() });
+        voice.play();
+      }
     } catch (e) {
       const msg =
         e instanceof ApiError && e.status === 429
           ? "You're chatting fast! Give me a minute and ask again."
           : "I couldn't reach the server. Check your connection and try again.";
-      setTurns((prev) => [...prev, { role: 'somni', text: msg, local: true }]);
+      say(msg);
     } finally {
       setThinking(false);
     }
   };
 
+  // Push-to-talk: first tap starts recording, second tap stops, transcribes (ElevenLabs) and asks Somni out loud.
+  const toggleMic = async () => {
+    if (mic === 'transcribing' || thinking) return;
+    if (mic === 'idle') {
+      const { granted } = await requestRecordingPermissionsAsync();
+      if (!granted) return say('Allow microphone access in Settings to talk to me.');
+      voice.pause();
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      setMic('recording');
+      return;
+    }
+    setMic('transcribing');
+    try {
+      await recorder.stop();
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }); // replies play on the speaker
+      if (!recorder.uri) throw new Error('no recording');
+      const { text } = await api.transcribe(userId, recorder.uri);
+      setMic('idle');
+      await send(text, true);
+    } catch (e) {
+      setMic('idle');
+      say(e instanceof ApiError ? e.message : "I couldn't hear that. Try again, or type your question.");
+    }
+  };
+
+  const close = () => {
+    voice.pause();
+    if (mic === 'recording') {
+      recorder.stop().catch(() => {});
+      setMic('idle');
+    }
+    onClose();
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
       <KeyboardAvoidingView style={styles.sheet} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.header}>
           <View style={styles.avatar}>
@@ -94,7 +149,7 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
             <Text style={t.section}>Somni</Text>
             <Text style={t.caption}>Your sleep coach · answers from your Sleep Squad data</Text>
           </View>
-          <Pressable accessibilityLabel="Close chat" onPress={onClose} hitSlop={12} style={styles.close}>
+          <Pressable accessibilityLabel="Close chat" onPress={close} hitSlop={12} style={styles.close}>
             <SymbolView name="xmark" size={14} tintColor={colors.textSoft} />
           </Pressable>
         </View>
@@ -111,16 +166,16 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
             </View>
           )}
           ListFooterComponent={
-            thinking ? (
+            thinking || mic === 'transcribing' ? (
               <View style={[styles.bubble, styles.somniBubble, styles.thinking]}>
                 <ActivityIndicator size="small" color={colors.textSoft} />
-                <Text style={t.caption}>Somni is thinking…</Text>
+                <Text style={t.caption}>{mic === 'transcribing' ? 'Listening back…' : 'Somni is thinking…'}</Text>
               </View>
             ) : null
           }
         />
 
-        {!thinking && suggestions.length > 0 && (
+        {!thinking && mic === 'idle' && suggestions.length > 0 && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -135,18 +190,32 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
         )}
 
         <View style={styles.inputRow}>
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder="Ask about your sleep…"
-            placeholderTextColor={colors.tabInactive}
-            style={styles.input}
-            maxLength={500}
-            multiline
-            returnKeyType="send"
-            submitBehavior="submit"
-            onSubmitEditing={() => send(draft)}
-          />
+          <Pressable
+            accessibilityLabel={mic === 'recording' ? 'Stop and send voice question' : 'Ask by voice'}
+            onPress={toggleMic}
+            disabled={mic === 'transcribing' || thinking}
+            style={[styles.mic, mic === 'recording' && styles.micLive, (mic === 'transcribing' || thinking) && styles.sendDisabled]}>
+            <SymbolView name={mic === 'recording' ? 'stop.fill' : 'mic.fill'} size={16} tintColor={mic === 'recording' ? colors.onAccent : colors.text} />
+          </Pressable>
+          {mic === 'recording' ? (
+            <View style={styles.listening}>
+              <View style={styles.liveDot} />
+              <Text style={styles.listeningText}>Listening… tap stop to send</Text>
+            </View>
+          ) : (
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              placeholder="Ask about your sleep…"
+              placeholderTextColor={colors.tabInactive}
+              style={styles.input}
+              maxLength={500}
+              multiline
+              returnKeyType="send"
+              submitBehavior="submit"
+              onSubmitEditing={() => send(draft)}
+            />
+          )}
           <Pressable
             accessibilityLabel="Send"
             onPress={() => send(draft)}
@@ -162,23 +231,17 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
 }
 
 const styles = StyleSheet.create({
-  fab: {
-    position: 'absolute',
-    right: 0,
-    bottom: spacing.sm,
-    flexDirection: 'row',
+  // Same look as the calendar button beside it in Home's header.
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.raised,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: radius.pill,
-    backgroundColor: colors.accent,
-    shadowColor: colors.glow,
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 0 },
+    justifyContent: 'center',
   },
-  fabText: { fontFamily: fontFamily.semibold, fontSize: 14, color: colors.onAccent },
   pressed: { opacity: 0.8 },
   sheet: { flex: 1, backgroundColor: colors.bg },
   header: {
@@ -258,5 +321,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendDisabled: { opacity: 0.35 },
+  mic: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.raised,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  micLive: { backgroundColor: colors.down },
+  listening: {
+    flex: 1,
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    borderRadius: 21,
+    borderWidth: 1,
+    borderColor: colors.down,
+    backgroundColor: colors.card,
+  },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.down },
+  listeningText: { fontFamily: fontFamily.medium, fontSize: 15, color: colors.text },
   footer: { textAlign: 'center', paddingTop: 6, paddingBottom: spacing.lg },
 });

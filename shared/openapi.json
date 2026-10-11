@@ -745,6 +745,56 @@
         }
       }
     },
+    "/ai/transcribe/{user_id}": {
+      "post": {
+        "summary": "Transcribe",
+        "description": "Push-to-talk for Somni: raw audio body (m4a) -> ElevenLabs speech-to-text -> the question's text.",
+        "operationId": "transcribe_ai_transcribe__user_id__post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transcript"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/audio/{file}": {
       "get": {
         "summary": "Audio",
@@ -1775,6 +1825,17 @@
             "type": "boolean",
             "title": "In Scope",
             "default": true
+          },
+          "audio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Url"
           }
         },
         "type": "object",
@@ -1791,6 +1852,11 @@
             },
             "type": "array",
             "title": "Messages"
+          },
+          "speak": {
+            "type": "boolean",
+            "title": "Speak",
+            "default": false
           }
         },
         "type": "object",
@@ -2855,6 +2921,20 @@
         ],
         "title": "SyncStatus",
         "description": "Apple Health sync state for the Profile screen (the iOS Shortcut is the only sync path)."
+      },
+      "Transcript": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "Transcript",
+        "description": "Push-to-talk speech-to-text result (P2, POST /ai/transcribe/{user_id})."
       },
       "User": {
         "properties": {

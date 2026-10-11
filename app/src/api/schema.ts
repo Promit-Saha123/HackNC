@@ -280,6 +280,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ai/transcribe/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transcribe
+         * @description Push-to-talk for Somni: raw audio body (m4a) -> ElevenLabs speech-to-text -> the question's text.
+         */
+        post: operations["transcribe_ai_transcribe__user_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ai/audio/{file}": {
         parameters: {
             query?: never;
@@ -661,11 +681,18 @@ export interface components {
              * @default true
              */
             in_scope: boolean;
+            /** Audio Url */
+            audio_url?: string | null;
         };
         /** ChatRequest */
         ChatRequest: {
             /** Messages */
             messages: components["schemas"]["ChatMessage"][];
+            /**
+             * Speak
+             * @default false
+             */
+            speak: boolean;
         };
         /**
          * FriendCard
@@ -1110,6 +1137,14 @@ export interface components {
              * @default 0
              */
             nights_synced: number;
+        };
+        /**
+         * Transcript
+         * @description Push-to-talk speech-to-text result (P2, POST /ai/transcribe/{user_id}).
+         */
+        Transcript: {
+            /** Text */
+            text: string;
         };
         /** User */
         User: {
@@ -1628,6 +1663,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatReply"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transcribe_ai_transcribe__user_id__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transcript"];
                 };
             };
             /** @description Validation Error */

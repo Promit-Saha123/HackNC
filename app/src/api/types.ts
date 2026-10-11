@@ -26,6 +26,7 @@ export type SyncStatus = Schemas['SyncStatus'];
 export type IngestToken = Schemas['IngestToken'];
 export type ChatMessage = Schemas['ChatMessage'];
 export type ChatReply = Schemas['ChatReply'];
+export type Transcript = Schemas['Transcript'];
 
 export interface Api {
   users(): Promise<User[]>;
@@ -87,6 +88,11 @@ export interface Api {
   deleteMyData(): Promise<void>;
 
   // --- Somni, the in-app chatbot (Gemini), scoped to the user's own Sleep Squad data. ---
-  /** Send the conversation so far (oldest first, ending with the user's question). 429 if chatting too fast. */
-  chat(userId: number, messages: ChatMessage[]): Promise<ChatReply>;
+  /**
+   * Send the conversation so far (oldest first, ending with the user's question). 429 if chatting too fast.
+   * `speak: true` (voice chat) also returns `audio_url`: Somni's reply read aloud by ElevenLabs.
+   */
+  chat(userId: number, messages: ChatMessage[], options?: { speak?: boolean }): Promise<ChatReply>;
+  /** Push-to-talk: upload a recording (local file URI from expo-audio) and get its text via ElevenLabs speech-to-text. */
+  transcribe(userId: number, fileUri: string): Promise<Transcript>;
 }
