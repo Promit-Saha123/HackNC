@@ -1,0 +1,28 @@
+# Render Blueprint: one web service for the Sleep Squad API (FastAPI in backend/).
+# Render dashboard -> New -> Blueprint -> pick this repo. Fill the secret values marked "sync: false" when asked.
+# Free plan: the service sleeps after 15 min with no traffic, and the first request after that takes ~30-60 s.
+# Keep it awake with a free uptime monitor (e.g. UptimeRobot) pinging https://<service>.onrender.com/health every 5 min.
+services:
+  - type: web
+    name: sleep-squad-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    region: ohio  # Tiger Cloud is in AWS us-east-2 (Ohio), so keep the API next to it. Render regions: oregon, ohio, virginia, frankfurt, singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true  # redeploys on every push to main. Set to false to deploy by hand instead.
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: DATABASE_URL  # the only secret Render asks for: paste the value from backend/.env
+        sync: false
+      # Optional, add later under the service's Environment tab: GEMINI_API_KEY (briefings fall back to a template
+      # without it), ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID (audio briefings).
+      - key: AUTH_SECRET
+        generateValue: true  # a strong random secret, generated once by Render. Changing it signs everyone out.
+      - key: STRICT_PRIVACY
+        value: "false"  # turn on once the app sends tokens everywhere
+      - key: CORS_ORIGINS
+        value: "*"

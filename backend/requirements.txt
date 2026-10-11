@@ -1,11 +1,16 @@
-fastapi
-uvicorn[standard]
-psycopg[binary,pool]
-pydantic-settings
-python-dotenv
-google-genai
-elevenlabs
-httpx
-numpy
-pandas
-pytest
+# Pinned to the versions the 68-test suite and the demo run on (Python 3.12.8), so a new release can't break a deploy.
+# To upgrade: bump here, run pytest, then redeploy.
+fastapi==0.143.0
+starlette==1.7.0
+uvicorn[standard]==0.54.0
+psycopg[binary,pool]==3.3.6
+psycopg-pool==3.3.3
+pydantic==2.14.0
+pydantic-settings==2.15.0
+python-dotenv==1.2.4
+google-genai==2.29.0
+elevenlabs==2.71.0
+httpx==0.28.1
+numpy==2.5.4
+pandas==3.0.6
+pytest==9.1.1

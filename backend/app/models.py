@@ -209,6 +209,22 @@ class SyncStatus(BaseModel):
     nights_synced: int = 0
 
 
+class WhoopStatus(BaseModel):
+    """WHOOP connection for the Profile screen. Only sleep is ever read (scopes: read:sleep, read:profile, offline)."""
+    configured: bool = True  # False when the server has no WHOOP app credentials yet
+    connected: bool = False
+    last_sync_at: dt.datetime | None = None
+    nights_synced: int = 0
+
+
+class WhoopConnectUrl(BaseModel):
+    url: str  # open this in a browser: WHOOP login -> consent -> back to our callback
+
+
+class WhoopSyncResult(BaseModel):
+    nights_found: int
+
+
 class ShortcutResult(BaseModel):
     user_id: int
     samples_parsed: int
@@ -228,3 +244,26 @@ class Insight(BaseModel):
     text: str
     kind: str | None = None  # bedtime | weekend | trend | steady; None = not enough nights yet
     nights_used: int = 0
+
+
+class ChatMessage(BaseModel):
+    """One turn in a Somni chat (P2, POST /ai/chat/{user_id})."""
+    role: Literal["user", "somni"]
+    text: str
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage]  # oldest first; the last one is the user's new question
+    speak: bool = False  # True (voice chat): also return Somni's reply as ElevenLabs audio
+
+
+class ChatReply(BaseModel):
+    reply: str
+    suggestions: list[str] = []  # 0-3 tappable follow-up questions
+    in_scope: bool = True  # False when Somni declined an off-topic or medical question
+    audio_url: str | None = None  # spoken reply (MP3) when speak=true and ElevenLabs is configured
+
+
+class Transcript(BaseModel):
+    """Push-to-talk speech-to-text result (P2, POST /ai/transcribe/{user_id})."""
+    text: str

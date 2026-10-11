@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
 from ..auth import current_user_id, ingest_user_id, require_self
+from ..integrations import whoop
 from ..models import HistoryNight, Overview, ShortcutResult, SleepNight, User
 from ..store import store
 
@@ -18,6 +19,7 @@ STAGES = {
 }
 NIGHT_GAP = timedelta(hours=3)  # a bigger gap between samples starts a new night
 MIN_ASLEEP_MIN = 30  # ignore naps / noise
+MAX_UPLOAD_BYTES = 1_000_000  # a week of samples is ~30 KB, so this is generous but stops a memory-exhausting upload
 
 
 def parse_samples(text: str) -> tuple[list[tuple[datetime, datetime, str]], int]:
@@ -106,6 +108,9 @@ def delete_data(user_id: int, uid: int = Depends(current_user_id)):
         raise HTTPException(404, "unknown user")
     if user.is_demo:
         raise HTTPException(403, "demo profiles can't be deleted")
+    conn = store.get_whoop(user_id)
+    if conn:  # also cut our access at WHOOP, not just our copy of the tokens (the row itself goes with the user)
+        whoop.revoke(conn["access_token"])
     store.delete_user(user_id)
 
 
@@ -117,7 +122,16 @@ async def shortcut(request: Request, x_ingest_token: str = Header(""), x_user_id
     user = store.get_user(x_user_id) if x_user_id is not None else None
     if user is None:
         raise HTTPException(404 if x_user_id is not None else 401, "unknown user" if x_user_id is not None else "missing X-User-Id or X-Ingest-Token")
-    samples, skipped = parse_samples((await request.body()).decode("utf-8", errors="replace"))
+    too_big = HTTPException(413, f"upload too large (max {MAX_UPLOAD_BYTES // 1000} KB)")
+    if int(request.headers.get("content-length") or 0) > MAX_UPLOAD_BYTES:
+        raise too_big
+    chunks, size = [], 0
+    async for chunk in request.stream():  # count as it arrives, so a missing/lying Content-Length can't bypass the cap
+        size += len(chunk)
+        if size > MAX_UPLOAD_BYTES:
+            raise too_big
+        chunks.append(chunk)
+    samples, skipped = parse_samples(b"".join(chunks).decode("utf-8", errors="replace"))
     nights = samples_to_nights(samples)
     if nights:
         store.add_nights(x_user_id, nights)
