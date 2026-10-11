@@ -24,7 +24,7 @@ const smoothstep = (a: number, b: number, x: number) => {
 const bell = (x: number, center: number, width: number) => Math.exp(-(((x - center) / width) ** 2));
 
 const NIGHT = { top: '#050A24', mid: '#0D1A4A', horizon: '#1F3470', seaTop: '#12265A', seaBottom: '#040A20' };
-const DAY = { top: '#3A8CD6', mid: '#7DBFEB', horizon: '#D3EEFB', seaTop: '#5BAAD8', seaBottom: '#1A69A2' };
+const DAY = { top: '#2B82DE', mid: '#68BBF2', horizon: '#CDEFFF', seaTop: '#4FB0E6', seaBottom: '#1263A6' };
 const GLOW = { mid: '#B98BC0', horizon: '#F7A878' };
 
 export type Sky = {

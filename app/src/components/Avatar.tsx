@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { GlossCap } from '@/components/GlossCap';
 import { colors } from '@/theme/colors';
 import { fontFamily } from '@/theme/fonts';
 
@@ -18,6 +19,7 @@ export function Avatar({ name, size = 40, glow = true }: Props) {
         end={{ x: 1, y: 1 }}
         style={[styles.ring, { width: size, height: size, borderRadius: size / 2 }]}>
         <View style={[styles.inner, { width: inner, height: inner, borderRadius: inner / 2 }]}>
+          <GlossCap strength={0.45} />
           <Text style={[styles.letter, { fontSize: size * 0.4 }]}>{name.slice(0, 1).toUpperCase()}</Text>
         </View>
       </LinearGradient>
@@ -33,6 +35,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   ring: { alignItems: 'center', justifyContent: 'center' },
-  inner: { backgroundColor: colors.raised, alignItems: 'center', justifyContent: 'center' },
+  inner: { backgroundColor: colors.raised, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   letter: { color: colors.text, fontFamily: fontFamily.bold },
 });

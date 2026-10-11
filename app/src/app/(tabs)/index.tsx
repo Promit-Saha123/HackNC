@@ -7,7 +7,8 @@ import { ActionBar } from '@/components/ActionBar';
 import { Avatar } from '@/components/Avatar';
 import { BriefingCard } from '@/components/BriefingCard';
 import { Card, Divider } from '@/components/Card';
-import { Glass, GlassIconButton } from '@/components/Glass';
+import { GlassIconButton } from '@/components/Glass';
+import { GlassBubble } from '@/components/GlassBubble';
 import { IconCircle } from '@/components/IconCircle';
 import { Screen, Section } from '@/components/Screen';
 import { SleepRing } from '@/components/SleepRing';
@@ -93,7 +94,7 @@ export default function HomeScreen() {
         </>
       }>
       <View style={styles.ringArea}>
-        <Glass style={[styles.disc, { width: ringSize * 0.96, height: ringSize * 0.96, borderRadius: ringSize * 0.48 }]} />
+        <GlassBubble size={ringSize * 1.02} style={styles.disc} />
         <SleepRing
           size={ringSize}
           score={score}

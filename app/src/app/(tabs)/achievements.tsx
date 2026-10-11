@@ -184,6 +184,20 @@ function StreakRing({ value }: { value: number }) {
           fill="none"
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
+        {/* Glass shine along the inside of the arc */}
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r - stroke * 0.22}
+          stroke="#FFFFFF"
+          strokeOpacity={0.6}
+          strokeWidth={stroke * 0.3}
+          strokeLinecap="round"
+          strokeDasharray={2 * Math.PI * (r - stroke * 0.22)}
+          strokeDashoffset={2 * Math.PI * (r - stroke * 0.22) * (1 - v * 0.96)}
+          fill="none"
+          transform={`rotate(-88 ${size / 2} ${size / 2})`}
+        />
       </Svg>
       <View style={styles.ringIcon}>
         <SymbolView name="moon.fill" size={20} tintColor={colors.text} />

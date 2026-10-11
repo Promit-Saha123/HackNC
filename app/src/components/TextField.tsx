@@ -15,7 +15,7 @@ export const TextField = forwardRef<TextInput, Props>(function TextField({ label
       <Text style={styles.label}>{label}</Text>
       <TextInput
         ref={ref}
-        placeholderTextColor={colors.tabInactive}
+        placeholderTextColor="rgba(225,235,255,0.55)"
         onFocus={(e) => {
           setFocused(true);
           onFocus?.(e);
@@ -34,19 +34,19 @@ export const TextField = forwardRef<TextInput, Props>(function TextField({ label
 
 const styles = StyleSheet.create({
   wrap: { gap: 6 },
-  label: { fontFamily: fontFamily.medium, fontSize: 13, color: colors.textSoft, marginLeft: 4 },
+  label: { fontFamily: fontFamily.semibold, fontSize: 13, color: 'rgba(255,255,255,0.92)', marginLeft: 4 },
   input: {
     height: 52,
     paddingHorizontal: 16,
     borderRadius: radius.button,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(8,26,70,0.45)',
     color: colors.text,
     fontFamily: fontFamily.medium,
     fontSize: 16,
   },
-  focused: { borderColor: 'rgba(255,255,255,0.55)' },
+  focused: { borderColor: '#A9ECFF', backgroundColor: 'rgba(8,26,70,0.6)' },
   invalid: { borderColor: colors.danger },
   error: { fontFamily: fontFamily.regular, fontSize: 12, color: colors.danger, marginLeft: 4 },
 });

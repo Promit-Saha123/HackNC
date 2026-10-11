@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -22,6 +23,7 @@ import { GradientButton } from '@/components/GradientButton';
 import { Logo } from '@/components/Logo';
 import { Sheet } from '@/components/Sheet';
 import { TextField } from '@/components/TextField';
+import { useSky } from '@/state/sky';
 import { useUser } from '@/state/user';
 import { colors } from '@/theme/colors';
 import { fontFamily, type as t } from '@/theme/fonts';
@@ -33,6 +35,9 @@ const DEMO_PASSWORD = 'sleepsquad';
 const DEMO_PROFILE_ID = 1;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Deep navy glass for the form cards so white text reads on the bright daytime sky. */
+const FORM_TINT = 'rgba(10,32,84,0.55)';
+
 const OFFLINE = "Can't reach the server. Check your connection.";
 
 type Mode = 'login' | 'signup';
@@ -56,13 +61,14 @@ export default function LoginScreen() {
   return (
     <View style={styles.root}>
       <Backdrop />
+      <Scrim />
       <SafeAreaView style={styles.fill}>
         <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <View style={styles.hero}>
               <Logo />
               <Text style={styles.brand}>Somni</Text>
-              <Text style={[t.subtitle, styles.center]}>
+              <Text style={[t.subtitle, styles.center, styles.readable]}>
                 {mode === 'login' ? 'Make sleep the thing your friends compete on.' : 'Create your account'}
               </Text>
             </View>
@@ -74,7 +80,7 @@ export default function LoginScreen() {
             )}
 
             <View style={styles.switchRow}>
-              <Text style={t.body}>{mode === 'login' ? "Don't have an account?" : 'Already have an account?'}</Text>
+              <Text style={[t.body, styles.readable]}>{mode === 'login' ? "Don't have an account?" : 'Already have an account?'}</Text>
               <Pressable hitSlop={8} onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}>
                 <Text style={styles.link}>{mode === 'login' ? 'Create one' : 'Log in'}</Text>
               </Pressable>
@@ -130,7 +136,7 @@ function LoginForm({ users, onForgot }: { users: User[]; onForgot: () => void })
 
   return (
     <View style={styles.form}>
-      <Card>
+      <Card tint={FORM_TINT}>
         <View style={styles.fields}>
           <TextField
             label="Username or email"
@@ -172,7 +178,7 @@ function LoginForm({ users, onForgot }: { users: User[]; onForgot: () => void })
 
       {users.length > 0 && (
         <View style={styles.demo}>
-          <Text style={[t.caption, styles.center]}>Demo accounts · password {DEMO_PASSWORD}</Text>
+          <Text style={[t.caption, styles.center, styles.readable]}>Demo accounts · password {DEMO_PASSWORD}</Text>
           <View style={styles.chips}>
             {users.map((u) => (
               <Pressable
@@ -251,7 +257,7 @@ function SignupForm({ users }: { users: User[] }) {
 
   return (
     <View style={styles.form}>
-      <Card>
+      <Card tint={FORM_TINT}>
         <View style={styles.fields}>
           <TextField
             label="Full name"
@@ -334,7 +340,7 @@ function SignupForm({ users }: { users: User[] }) {
       </Card>
 
       <GradientButton label="Create account" onPress={submit} />
-      <Text style={[t.caption, styles.center]}>
+      <Text style={[t.caption, styles.center, styles.readable]}>
         Somni reads sleep times and stages only. Friends see your score and streak, nothing else. Not medical advice.
       </Text>
     </View>
@@ -393,6 +399,8 @@ function ForgotForm({ onDone }: { onDone: () => void }) {
   );
 }
 
+const shadow = { textShadowColor: 'rgba(5,20,60,0.55)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } };
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   fill: { flex: 1 },
@@ -403,7 +411,8 @@ const styles = StyleSheet.create({
   form: { gap: spacing.md },
   fields: { gap: 14 },
   forgot: { alignSelf: 'flex-end' },
-  link: { fontFamily: fontFamily.semibold, fontSize: 15, color: colors.text, textDecorationLine: 'underline' },
+  link: { fontFamily: fontFamily.bold, fontSize: 15, color: colors.text, textDecorationLine: 'underline', ...shadow },
+  readable: { color: 'rgba(255,255,255,0.94)', ...shadow },
   switchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
   error: { color: colors.danger, fontSize: 14, textAlign: 'center' },
   demo: { gap: spacing.sm },
@@ -412,10 +421,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(8,26,70,0.5)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.35)',
   },
   chipText: { fontFamily: fontFamily.medium, fontSize: 14, color: colors.text },
   pressed: { opacity: 0.75 },
 });
+
+/** Darkens the sky behind the form, more in daylight, so text stays readable at any hour. */
+function Scrim() {
+  const { daylight } = useSky();
+  const a = (k: number) => `rgba(6,22,64,${(k * (0.25 + daylight * 0.45)).toFixed(2)})`;
+  return (
+    <LinearGradient
+      pointerEvents="none"
+      colors={[a(0.9), a(0.7), a(1)]}
+      locations={[0, 0.45, 1]}
+      style={StyleSheet.absoluteFill}
+    />
+  );
+}

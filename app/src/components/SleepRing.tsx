@@ -87,18 +87,20 @@ export function SleepRing({ size, score, stages, sleep, target, onPress }: Props
 
         {/* Outer night clock */}
         <Circle cx={c} cy={c} r={r1} stroke={colors.ringTrack} strokeWidth={s1} fill="none" />
-        <Arc c={c} r={r1} width={s1} color={colors.dimBar} start={clockDeg(target.bed)} sweep={sweepDeg(target)} progress={null} round />
+        <Circle cx={c} cy={c} r={r1 - s1 * 0.22} stroke="#FFFFFF" strokeOpacity={0.1} strokeWidth={s1 * 0.25} fill="none" />
+        <GlassArc c={c} r={r1} width={s1} color={colors.dimBar} start={clockDeg(target.bed)} sweep={sweepDeg(target)} progress={null} round />
         {sleep && (
           <>
             <Arc c={c} r={r1} width={s1 + size * 0.04} color="url(#night)" opacity={0.16} start={clockDeg(sleep.bed)} sweep={sweepDeg(sleep)} progress={progress} round />
-            <Arc c={c} r={r1} width={s1} color="url(#night)" start={clockDeg(sleep.bed)} sweep={sweepDeg(sleep)} progress={progress} round />
+            <GlassArc c={c} r={r1} width={s1} color="url(#night)" start={clockDeg(sleep.bed)} sweep={sweepDeg(sleep)} progress={progress} round />
           </>
         )}
 
         {/* Inner stages */}
         <Circle cx={c} cy={c} r={r2} stroke={colors.ringTrack} strokeWidth={s2} fill="none" />
+        <Circle cx={c} cy={c} r={r2 - s2 * 0.22} stroke="#FFFFFF" strokeOpacity={0.1} strokeWidth={s2 * 0.25} fill="none" />
         {segments.map((s) => (
-          <Arc key={s.key} c={c} r={r2} width={s2} color={s.color} start={s.start + 1.5} sweep={Math.max(0, s.sweep - 3)} progress={progress} />
+          <GlassArc key={s.key} c={c} r={r2} width={s2} color={s.color} start={s.start + 1.5} sweep={Math.max(0, s.sweep - 3)} progress={progress} />
         ))}
       </Svg>
 
@@ -194,3 +196,22 @@ const styles = StyleSheet.create({
   percent: { color: colors.textSoft, fontFamily: fontFamily.semibold, letterSpacing: 0 },
   hint: { color: colors.tabInactive, fontFamily: fontFamily.regular },
 });
+
+/**
+ * Arc drawn as a glass tube (Frutiger Aero): the colored stroke, a soft dark rim on the outside,
+ * and a bright shine line along the inside, all sharing the same reveal animation.
+ */
+function GlassArc(props: ArcProps) {
+  const { r, width, sweep, round } = props;
+  // Keep the shine inside the arc's rounded ends.
+  const inset = round ? ((width * 0.5) / r) * (180 / Math.PI) : 1;
+  const shineSweep = Math.max(0, sweep - inset * 2);
+  return (
+    <>
+      <Arc {...props} />
+      <Arc {...props} r={r + width * 0.38} width={width * 0.24} color="#0A2A6A" opacity={0.22} />
+      <Arc {...props} r={r - width * 0.2} width={width * 0.3} color="#FFFFFF" opacity={0.5} start={props.start + inset} sweep={shineSweep} round />
+      <Arc {...props} r={r - width * 0.26} width={width * 0.1} color="#FFFFFF" opacity={0.85} start={props.start + inset} sweep={shineSweep} round />
+    </>
+  );
+}

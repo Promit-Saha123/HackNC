@@ -14,7 +14,8 @@ const SkyContext = createContext<SkyState | null>(null);
 /** Shares the time-of-day sky with every screen. Re-reads the clock every minute so the scene drifts slowly. */
 export function SkyProvider({ children }: { children: ReactNode }) {
   const [clock, setClock] = useState(nowHour);
-  const [preview, setPreview] = useState<number | null>(null);
+  // TEMP: forced to midday so the day theme can be checked. Set back to null to follow the clock.
+  const [preview, setPreview] = useState<number | null>(12);
 
   useEffect(() => {
     const id = setInterval(() => setClock(nowHour()), 60_000);
