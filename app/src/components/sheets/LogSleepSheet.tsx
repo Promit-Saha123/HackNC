@@ -58,7 +58,7 @@ function LogForm({ onDone }: { onDone: () => void }) {
     setSaving(true);
     setError(null);
     try {
-      await api.logNight(localIso(bedAt), localIso(wakeAt));
+      await api.logSleep(localIso(bedAt), localIso(wakeAt));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       bump();
       onDone();

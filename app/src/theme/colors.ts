@@ -3,9 +3,9 @@
 export const colors = {
   bg: '#0D1A4A',
   edgeGlow: '#13265A',
-  card: 'rgba(255,255,255,0.12)',
-  cardSheen: 'rgba(255,255,255,0.18)',
-  raised: 'rgba(255,255,255,0.16)',
+  card: 'rgba(255,255,255,0.08)',
+  cardSheen: 'rgba(255,255,255,0.1)',
+  raised: 'rgba(255,255,255,0.1)',
   highlight: 'rgba(255,255,255,0.14)',
   tabBar: '#0D1A4A',
   border: 'rgba(255,255,255,0.24)',
@@ -14,7 +14,7 @@ export const colors = {
   sheet: '#172C63',
 
   text: '#FFFFFF',
-  textSoft: 'rgba(240,247,255,0.86)',
+  textSoft: 'rgba(225,236,255,0.78)',
   tabInactive: 'rgba(236,243,255,0.7)',
   tabActive: '#FFFFFF',
 
@@ -41,7 +41,7 @@ export const colors = {
   down: '#FF97A8',
   connected: '#62F2B4',
   toggleOn: '#7FD4FF',
-  unlockedBg: 'rgba(255,255,255,0.22)',
+  unlockedBg: 'rgba(255,255,255,0.14)',
   unlockedText: '#FFFFFF',
   danger: '#FF8FA0',
 } as const;

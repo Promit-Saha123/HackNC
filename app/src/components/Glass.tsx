@@ -21,7 +21,7 @@ export const HAS_GLASS = (() => {
  */
 function skyTint(daylight: number) {
   const lerp = (a: number, b: number) => Math.round(a + (b - a) * daylight);
-  return `rgba(${lerp(46, 128)},${lerp(70, 186)},${lerp(150, 240)},${(0.34 - daylight * 0.06).toFixed(2)})`;
+  return `rgba(${lerp(20, 128)},${lerp(38, 186)},${lerp(100, 240)},${(0.5 - daylight * 0.22).toFixed(2)})`;
 }
 
 type Props = {
@@ -46,7 +46,7 @@ export function Glass({ children, style, interactive, solid }: Props) {
     return (
       <GlassView
         glassEffectStyle="regular"
-        colorScheme="light"
+        colorScheme={daylight > 0.5 ? 'light' : 'dark'}
         isInteractive={interactive}
         tintColor={skyTint(daylight)}
         style={[styles.base, style]}>
@@ -76,7 +76,7 @@ function SolidBacking({ daylight }: { daylight: number }) {
 /** Soft gloss layers: top glow, bright bottom edge, white rim and inner bevel. Gentler at night. */
 function BubbleFinish({ daylight, radius }: { daylight: number; radius: number }) {
   const [box, setBox] = useState({ w: 0, h: 0 });
-  const a = 0.2 + daylight * 0.16;
+  const a = 0.1 + daylight * 0.16;
   const w = (k: number) => `rgba(255,255,255,${Math.min(1, a * k).toFixed(3)})`;
   const r = Math.max(0, Math.min(radius, box.h / 2, box.w / 2));
 
@@ -94,9 +94,9 @@ function BubbleFinish({ daylight, radius }: { daylight: number; radius: number }
         <Svg width={box.w} height={box.h} style={StyleSheet.absoluteFill}>
           <Defs>
             <SvgGradient id="rim" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.95} />
-              <Stop offset="0.5" stopColor="#D8F3FF" stopOpacity={0.55} />
-              <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.9} />
+              <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.55 + daylight * 0.4} />
+              <Stop offset="0.5" stopColor="#D8F3FF" stopOpacity={0.22 + daylight * 0.33} />
+              <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.45 + daylight * 0.45} />
             </SvgGradient>
           </Defs>
           {/* Clean white rim */}
@@ -119,7 +119,7 @@ function BubbleFinish({ daylight, radius }: { daylight: number; radius: number }
             rx={Math.max(0, r - 3)}
             fill="none"
             stroke="#FFFFFF"
-            strokeOpacity={0.14 + daylight * 0.1}
+            strokeOpacity={0.06 + daylight * 0.1}
             strokeWidth={4}
           />
         </Svg>
@@ -143,7 +143,7 @@ export function GlassIconButton({ onPress, children, size = 40, style }: ButtonP
 
 const styles = StyleSheet.create({
   base: { overflow: 'hidden' },
-  fallback: { backgroundColor: 'rgba(140,195,240,0.28)' },
+  fallback: { backgroundColor: 'rgba(30,55,125,0.5)' },
   solid: { opacity: 0.94 },
   iconBtn: { alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.75 },

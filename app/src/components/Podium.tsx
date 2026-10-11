@@ -54,11 +54,11 @@ export function Podium({ top, meId, valueOf, delta, onPress }: Props) {
             {delta && <RankChange delta={delta(e)} />}
             <View style={[styles.block, { height: spot.block }]}>
               <LinearGradient
-                colors={place === 1 ? ['rgba(255,255,255,0.28)', 'rgba(255,255,255,0.04)'] : ['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.02)']}
+                colors={place === 1 ? ['rgba(120,200,255,0.95)', 'rgba(110,100,230,0.9)'] : ['rgba(52,84,170,0.95)', 'rgba(26,44,110,0.95)']}
                 style={StyleSheet.absoluteFill}
               />
-              <GlossCap strength={place === 1 ? 0.45 : 0.3} />
-              <Text style={styles.blockNum}>{place}</Text>
+              <GlossCap strength={place === 1 ? 0.5 : 0.35} />
+              <Text style={[styles.blockNum, place === 1 && styles.blockNumFirst]}>{place}</Text>
             </View>
           </Pressable>
         );
@@ -96,10 +96,11 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 14,
     borderWidth: 1,
     borderBottomWidth: 0,
-    borderColor: colors.border,
+    borderColor: 'rgba(200,225,255,0.55)',
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  blockNum: { fontFamily: fontFamily.bold, fontSize: 28, color: 'rgba(245,246,247,0.35)' },
+  blockNum: { fontFamily: fontFamily.bold, fontSize: 28, color: 'rgba(255,255,255,0.6)' },
+  blockNumFirst: { color: '#FFFFFF' },
 });

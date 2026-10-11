@@ -14,7 +14,7 @@ type Props = {
  * Drop it inside any filled, overflow-hidden shape.
  */
 export function GlossCap({ strength = 0.5, direction = 'top', style }: Props) {
-  const w = (k: number) => `rgba(255,255,255,${(strength * k).toFixed(3)})`;
+  const w = (k: number) => `rgba(255,255,255,${(strength * k * 0.6).toFixed(3)})`;
   const side = direction === 'side';
   return (
     <LinearGradient

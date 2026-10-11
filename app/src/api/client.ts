@@ -1,69 +1,90 @@
+import { ApiError } from './errors';
+import { localIso } from './time';
 import { mockClient } from './mockClient';
-import { ApiError, type Api } from './types';
+import type { Api, LoginResponse, User } from './types';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
 export const USE_MOCKS = process.env.EXPO_PUBLIC_USE_MOCKS !== 'false';
 
-/** Bearer token from login/signup. Kept in memory, so a reload signs out. */
+// Signed-in token, kept in memory: log in again after an app restart (no extra storage dependency).
 let token: string | null = null;
-export const setToken = (t: string | null) => {
-  token = t;
-};
+
+/** The backend's reason: `detail` is a string for our errors, a list for validation (422) errors. */
+async function errorMessage(res: Response): Promise<string> {
+  try {
+    const body = await res.json();
+    if (typeof body.detail === 'string') return body.detail;
+    if (Array.isArray(body.detail) && body.detail[0]?.msg) return body.detail[0].msg;
+  } catch {}
+  return `Request failed (${res.status})`;
+}
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!res.ok) {
-    // FastAPI sends {detail: "..."} (or a list of validation errors for 422).
-    const data = await res.json().catch(() => null);
-    const detail = data?.detail;
-    const msg = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail[0]?.msg : null;
-    throw new ApiError(res.status, msg ?? `${res.status} ${path}`);
-  }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  if (!res.ok) throw new ApiError(res.status, await errorMessage(res));
+  const text = await res.text(); // 204s have no body
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 const get = <T>(path: string) => request<T>('GET', path);
-const post = <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {});
-const put = <T>(path: string, body: unknown) => request<T>('PUT', path, body);
+
+async function signIn(path: string, username: string, password: string) {
+  const r = await request<LoginResponse>('POST', path, { username, password });
+  token = r.token;
+  return r;
+}
+
+const asLocal = (t: Date | string) => (typeof t === 'string' ? t : localIso(t));
 
 const httpClient: Api = {
   users: () => get('/users'),
   overview: (userId) => get(`/users/${userId}/overview`),
-  history: (userId, days = 60) => get(`/users/${userId}/history?days=${days}`),
   leaderboard: (period, squad) =>
     get(`/leaderboard?period=${period}${squad ? `&squad=${encodeURIComponent(squad)}` : ''}`),
   squadLeaderboard: (period) => get(`/leaderboard/squads?period=${period}`),
-  friendCard: (userId) => get(`/users/${userId}/card`),
   briefing: (userId) => get(`/ai/briefing/${userId}`),
   insight: (userId) => get(`/ai/insight/${userId}`),
 
-  login: (username, password) => post('/auth/login', { username, password }),
-  signup: (username, password) => post('/auth/signup', { username, password }),
-  me: () => get('/me'),
-  updateMe: (update) => put('/me', update),
-  changePassword: (current, next) => post('/me/password', { current_password: current, new_password: next }),
-  deleteData: (userId) => request('DELETE', `/users/${userId}/data`),
+  login: (username, password) => signIn('/auth/login', username, password),
+  signup: (username, password) => signIn('/auth/signup', username, password),
+  logout: () => {
+    token = null;
+  },
+  me: () => get('/auth/me'),
 
+  history: (userId, days = 60) => get(`/users/${userId}/history?days=${days}`),
+
+  profile: () => get('/me'),
+  updateProfile: (update) => request('PUT', '/me', update),
+  changePassword: (currentPassword, newPassword) =>
+    request('POST', '/me/password', { current_password: currentPassword, new_password: newPassword }),
   prefs: () => get('/me/prefs'),
-  savePrefs: (prefs) => put('/me/prefs', prefs),
-  logNight: (bed, wake) => post('/me/sleep', { bed, wake }),
-  syncStatus: () => get('/me/sync'),
-  ingestToken: () => post('/ingest/token'),
+  savePrefs: (prefs) => request('PUT', '/me/prefs', prefs),
+  logSleep: (bed, wake) => request('POST', '/me/sleep', { bed: asLocal(bed), wake: asLocal(wake) }),
 
   mySquad: () => get('/me/squad'),
-  createSquad: (name) => post('/me/squad', { name }),
-  joinSquad: (code) => post('/me/squad/join', { code }),
-  leaveSquad: () => post('/me/squad/leave'),
-  squad: (code) => get(`/squads/${encodeURIComponent(code)}`),
+  createSquad: (name) => request('POST', '/me/squad', { name }),
+  joinSquad: (code) => request('POST', '/me/squad/join', { code }),
+  leaveSquad: () => request('POST', '/me/squad/leave'),
+  squad: (code) => get(`/squads/${encodeURIComponent(code.trim())}`),
+
+  friendCard: (userId) => get(`/users/${userId}/card`),
+  syncStatus: () => get('/me/sync'),
+  ingestToken: () => request('POST', '/ingest/token'),
+  deleteMyData: async () => {
+    const me = await get<User>('/auth/me');
+    await request('DELETE', `/users/${me.id}/data`);
+    token = null; // the account no longer exists
+  },
 };
 
 /** Screens call `api.*`; flip EXPO_PUBLIC_USE_MOCKS to switch between fixtures and the backend. */
 export const api: Api = USE_MOCKS ? mockClient : httpClient;
+export { ApiError, isAuthError } from './errors';

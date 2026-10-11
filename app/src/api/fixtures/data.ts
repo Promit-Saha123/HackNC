@@ -1,115 +1,181 @@
+import { localIso } from '../time';
 import type { HistoryNight, LeaderboardEntry, Overview, User } from '../types';
 
-const day = (daysAgo: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() - daysAgo);
-  return d.toISOString().slice(0, 10);
-};
+/**
+ * Mock data mirroring the backend's seeded demo friends (backend/app/store.py PROFILES):
+ * same ids, names, squads and sleep stories, 60 deterministic nights each, scored with the same
+ * 40·duration + 30·consistency + 20·quality + 10·streak formula (simplified), so overview,
+ * history and leaderboards all agree with each other.
+ */
+const NIGHTS = 60;
 
-/** Local wall-clock ISO (no offset) for `minutes` after midnight, `daysAgo` days back. Negative minutes = the evening before. */
-const at = (daysAgo: number, minutes: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() - daysAgo);
-  d.setHours(0, minutes, 0, 0);
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
-};
-
-export const users: User[] = [
-  { id: 1, name: 'Maya', squad: 'Wolfpack', source: 'mock', is_demo: true },
-  { id: 2, name: 'Jordan', squad: 'Wolfpack', source: 'mock', is_demo: true },
-  { id: 3, name: 'Riley', squad: 'Night Owls', source: 'mock', is_demo: true },
-  { id: 4, name: 'Sam', squad: 'Night Owls', source: 'mock', is_demo: true },
+type Pattern = 'steady' | 'weekend' | 'exam' | 'improving';
+// name, squad, usual bedtime (hours after midnight: 23 = 11pm, 26 = 2am), hours asleep, pattern
+const PROFILES: [string, string, number, number, Pattern][] = [
+  ['Maya', 'Wolfpack', 22.75, 8.0, 'steady'], // perfect sleeper
+  ['Jordan', 'Wolfpack', 23.25, 7.4, 'weekend'], // weekend drift
+  ['Sam', 'Wolfpack', 23.5, 7.5, 'exam'], // exam-week crash
+  ['Riley', 'Night Owls', 26.0, 6.8, 'steady'], // night owl
+  ['Alex', 'Night Owls', 25.0, 5.8, 'improving'], // climbing out of all-nighters
+  ['Priya', 'Night Owls', 23.0, 7.8, 'steady'],
+  ['Chris', 'Library Rats', 24.0, 7.0, 'weekend'],
+  ['Dana', 'Library Rats', 24.25, 6.8, 'steady'],
 ];
 
-export const squadCodes: Record<string, string> = { WOLF23: 'Wolfpack', OWLS42: 'Night Owls' };
+const localDay = (d: Date) => localIso(d).slice(0, 10);
 
-type Shape = { scores: number[]; bed: number; hours: number; streak: number; best: number; badge: string | null };
+/** Small seeded RNG so every reload shows the same nights. */
+function rng(seed: number) {
+  let s = seed * 9301 + 49297;
+  const next = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+  return { next, gauss: (sd: number) => (next() + next() + next() - 1.5) * sd * 1.4 };
+}
 
-/** 60 nights per user: the last 7 match `scores`, earlier ones wobble around the same pattern. */
-function makeHistory(s: Shape): HistoryNight[] {
-  return Array.from({ length: 60 }, (_, i) => {
-    const ago = 59 - i;
-    const wobble = Math.sin(i * 1.7) * 25; // minutes
-    const recent = 7 - 1 - ago;
-    const score = recent >= 0 ? s.scores[recent] : Math.max(30, Math.min(99, Math.round(avgOf(s.scores) + wobble / 3)));
-    const asleep = Math.round(s.hours * 60 + wobble + (score - avgOf(s.scores)) * 2);
-    const bed = s.bed + Math.round(wobble);
-    const wake = bed + asleep + 25;
-    return {
-      day: day(ago),
-      bedtime: at(ago, bed - 1440),
-      wake_time: at(ago, wake - 1440),
-      duration_min: asleep,
-      efficiency: 0.92,
-      deep_min: Math.round(asleep * 0.17),
-      rem_min: Math.round(asleep * 0.23),
-      light_min: asleep - Math.round(asleep * 0.4),
-      awake_min: 25,
-      source: 'mock',
-      score,
+const durationPart = (h: number) => (h < 5 ? 0 : h < 7 ? (h - 5) / 2 : h <= 10 ? 1 : Math.max(0.7, 1 - 0.1 * (h - 10)));
+const consistencyPart = (off: number) =>
+  Math.abs(off) <= 30 ? 1 : Math.abs(off) >= 120 ? 0 : 1 - (Math.abs(off) - 30) / 90;
+const round1 = (x: number) => Math.round(x * 10) / 10;
+const BADGES: [number, string][] = [[30, 'aurora'], [14, 'rainbow'], [7, 'cloud'], [3, 'moon']];
+export const badgeFor = (streak: number) => BADGES.find(([need]) => streak >= need)?.[1] ?? null;
+
+type Scored = { night: HistoryNight; streak: number; parts: { d: number; c: number; q: number; s: number } };
+
+/** Score a night list (oldest first): usual bedtime = mean of the previous 7, like backend/app/scoring.py. */
+export function scoreNights(nights: Omit<HistoryNight, 'score'>[]): Scored[] {
+  const beds: number[] = [];
+  let streak = 0;
+  return nights.map((n) => {
+    const bed = new Date(n.bedtime);
+    const bedFrom18 = (bed.getHours() * 60 + bed.getMinutes() - 18 * 60 + 1440) % 1440; // no midnight wrap
+    const prior = beds.slice(-7);
+    const offset = prior.length ? bedFrom18 - prior.reduce((a, b) => a + b, 0) / prior.length : 0;
+    beds.push(bedFrom18);
+    streak = n.duration_min >= 420 && Math.abs(offset) <= 60 ? streak + 1 : 0;
+    const parts = {
+      d: 40 * durationPart(n.duration_min / 60),
+      c: 30 * consistencyPart(offset),
+      q: 20 * Math.min(1, Math.max(0, n.efficiency)),
+      s: 10 * Math.min(streak / 14, 1),
     };
+    return { night: { ...n, score: round1(parts.d + parts.c + parts.q + parts.s) }, streak, parts };
   });
 }
 
-function avgOf(xs: number[]) {
-  return xs.reduce((a, b) => a + b, 0) / xs.length;
+function genNights(uid: number, bedH: number, sleepH: number, kind: Pattern): Omit<HistoryNight, 'score'>[] {
+  const r = rng(uid);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const out: Omit<HistoryNight, 'score'>[] = [];
+  for (let i = 0; i < NIGHTS; i++) {
+    const wakeDay = new Date(today);
+    wakeDay.setDate(today.getDate() - (NIGHTS - 1 - i));
+    let bedMin = bedH * 60 + r.gauss(12);
+    let hours = sleepH + r.gauss(0.3);
+    const dow = wakeDay.getDay(); // 0 Sun, 6 Sat: wake-ups after Fri/Sat nights out
+    if (kind === 'weekend' && (dow === 0 || dow === 6)) {
+      bedMin += 120;
+      hours += 0.8;
+    } else if (kind === 'exam' && i >= NIGHTS - 10) {
+      bedMin += 150;
+      hours -= 2.5;
+    } else if (kind === 'improving') {
+      bedMin -= 90 * (i / (NIGHTS - 1));
+      hours += 2 * (i / (NIGHTS - 1));
+    }
+    const eff = Math.min(0.98, Math.max(0.75, 0.91 + r.gauss(0.03)));
+    const asleep = Math.round(Math.max(180, hours * 60));
+    const inBed = Math.round(asleep / eff);
+    const bed = new Date(wakeDay);
+    bed.setDate(bed.getDate() - 1);
+    bed.setMinutes(Math.round(bedMin));
+    const deep = Math.round(asleep * (0.14 + r.next() * 0.06));
+    const rem = Math.round(asleep * (0.19 + r.next() * 0.06));
+    out.push({
+      day: localDay(wakeDay),
+      bedtime: localIso(bed),
+      wake_time: localIso(new Date(bed.getTime() + inBed * 60000)),
+      duration_min: asleep,
+      efficiency: Math.round((asleep / inBed) * 1000) / 1000,
+      deep_min: deep,
+      rem_min: rem,
+      light_min: asleep - deep - rem,
+      awake_min: inBed - asleep,
+      source: 'mock',
+    });
+  }
+  return out;
 }
 
-function makeOverview(user: User, nights: HistoryNight[], s: Shape): Overview {
+export const users: User[] = PROFILES.map(([name, squad], i) => ({
+  id: i + 1,
+  name,
+  squad,
+  source: 'mock',
+  is_demo: true,
+}));
+
+/** Scored nights per user id, oldest first. `histories` is what GET /users/{id}/history returns. */
+const scored: Record<number, Scored[]> = Object.fromEntries(
+  PROFILES.map(([, , bedH, sleepH, kind], i) => [i + 1, scoreNights(genNights(i + 1, bedH, sleepH, kind))]),
+);
+export const histories: Record<number, HistoryNight[]> = Object.fromEntries(
+  Object.entries(scored).map(([uid, s]) => [uid, s.map((x) => x.night)]),
+);
+
+/** Overview built from scored nights, same shape as GET /users/{id}/overview. */
+export function overviewFor(user: User, nights: Scored[]): Overview {
   const last = nights[nights.length - 1];
-  const { score: _score, ...lastNight } = last;
+  if (!last) return { user, history: [], streak_days: 0, best_streak: 0, badge: null };
+  const { score, ...lastNight } = last.night;
+  const p = last.parts;
   return {
     user,
     last_night: lastNight,
     score: {
-      score: last.score,
-      duration_pts: 36,
-      consistency_pts: 27,
-      quality_pts: 18,
-      streak_pts: Math.round(Math.min(s.streak / 14, 1) * 10),
-      streak_days: s.streak,
+      score,
+      duration_pts: round1(p.d),
+      consistency_pts: round1(p.c),
+      quality_pts: round1(p.q),
+      streak_pts: round1(p.s),
+      streak_days: last.streak,
     },
-    history: nights.slice(-7).map((n) => ({
+    history: nights.slice(-7).map(({ night: n }) => ({
       day: n.day,
       score: n.score,
       bedtime: n.bedtime,
       wake_time: n.wake_time,
       duration_min: n.duration_min,
     })),
-    streak_days: s.streak,
-    best_streak: s.best,
-    badge: s.badge,
+    streak_days: last.streak,
+    best_streak: Math.max(...nights.map((x) => x.streak)),
+    badge: badgeFor(last.streak),
   };
 }
 
-// Bedtimes are minutes after midnight on the evening before (1380 = 11:00 pm, 1500 = 1:00 am).
-const SHAPES: Record<number, Shape> = {
-  1: { scores: [92, 95, 97, 94, 96, 98, 97], bed: 1365, hours: 8.0, streak: 12, best: 21, badge: 'cloud' },
-  2: { scores: [88, 71, 90, 85, 60, 74, 86], bed: 1410, hours: 7.3, streak: 2, best: 9, badge: null },
-  3: { scores: [70, 68, 75, 72, 66, 71, 74], bed: 1500, hours: 6.6, streak: 0, best: 4, badge: null },
-  4: { scores: [90, 44, 38, 52, 47, 60, 58], bed: 1440, hours: 5.4, streak: 0, best: 6, badge: null },
-};
+export const overviews: Record<number, Overview> = Object.fromEntries(
+  users.map((u) => [u.id, overviewFor(u, scored[u.id])]),
+);
 
-export const histories: Record<number, HistoryNight[]> = {};
-export const overviews: Record<number, Overview> = {};
-for (const u of users) {
-  histories[u.id] = makeHistory(SHAPES[u.id]);
-  overviews[u.id] = makeOverview(u, histories[u.id], SHAPES[u.id]);
+/** Re-score after a manual log, so the mock overview reflects it like the backend would. */
+export function rescore(userId: number, nights: Omit<HistoryNight, 'score'>[]) {
+  scored[userId] = scoreNights(nights);
+  histories[userId] = scored[userId].map((x) => x.night);
+  const user = users.find((u) => u.id === userId);
+  if (user) overviews[userId] = overviewFor(user, scored[userId]);
 }
 
-/** Previous ranks so the arrows have something to show: Jordan and Sam swapped since yesterday. */
-const PREV_RANK: Record<number, number> = { 1: 1, 2: 3, 3: 2, 4: 4 };
-
-export const leaderboard: LeaderboardEntry[] = Object.values(overviews)
-  .map((o) => ({
-    user_id: o.user.id,
-    name: o.user.name,
-    squad: o.user.squad,
-    score: o.score!.score,
-    streak_days: o.streak_days,
-    badge: o.badge,
-    prev_rank: PREV_RANK[o.user.id] ?? null,
-  }))
+/** Weekly board (mock): average of each user's last 7 nights. */
+export const leaderboard: LeaderboardEntry[] = users
+  .map((u) => {
+    const week = histories[u.id].slice(-7);
+    return {
+      user_id: u.id,
+      name: u.name,
+      squad: u.squad,
+      score: round1(week.reduce((a, n) => a + n.score, 0) / week.length),
+      streak_days: overviews[u.id].streak_days,
+      badge: overviews[u.id].badge,
+    };
+  })
   .sort((a, b) => b.score - a.score)
   .map((e, i) => ({ ...e, rank: i + 1 }));

@@ -15,9 +15,9 @@ export function IconCircle({ name, size = 44, color = colors.text }: Props) {
       <Svg width={size} height={size} style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>
           <RadialGradient id="orb" cx="38%" cy="30%" r="70%">
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.5} />
-            <Stop offset="0.45" stopColor="#FFFFFF" stopOpacity={0.08} />
-            <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.22} />
+            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.25} />
+            <Stop offset="0.45" stopColor="#FFFFFF" stopOpacity={0.03} />
+            <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.1} />
           </RadialGradient>
         </Defs>
         <Circle cx={c} cy={c} r={c} fill="url(#orb)" />
@@ -27,7 +27,7 @@ export function IconCircle({ name, size = 44, color = colors.text }: Props) {
           rx={c * 0.32}
           ry={c * 0.16}
           fill="#FFFFFF"
-          opacity={0.75}
+          opacity={0.4}
           transform={`rotate(-30 ${c * 0.7} ${c * 0.48})`}
         />
       </Svg>

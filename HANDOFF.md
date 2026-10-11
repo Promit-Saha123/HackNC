@@ -34,6 +34,8 @@ Last updated: 2026-10-11, Pranav (P3). Deadline: Devpost 10:00 AM Sun Oct 11, su
 - Gemini morning briefing (`backend/app/integrations/gemini.py`): structured JSON, compares only to the user's own baseline, model fallbacks (3.8 -> 3.5 -> 3.5-lite -> 3.7 flash, skipping models over daily quota), template fallback, cached per night. Tests block live Gemini (`tests/conftest.py`).
 - Weekly insight `GET /ai/insight/{user_id}` (`integrations/insight.py`): strongest pattern in the last 28 nights found in code (bedtime before midnight, weekend drift, week trend, else steady); Gemini only phrases it.
 - App side: regenerated `schema.ts`, `api.squadLeaderboard()`, `period: 'improved'`, `api.insight()` + mocks.
+- API client catch-up (PRs #19, #20, merged): login/signup/logout/me, history, profile/updateProfile/changePassword, prefs, logSleep, squads, friendCard, syncStatus, ingestToken, deleteMyData; `ApiError` / `isAuthError` in `src/api/errors.ts`. Mocks mirror the backend's 8 demo friends x 60 nights.
+- ElevenLabs Listen button (`p2/elevenlabs-briefing`, PR #16): not on main yet.
 
 ### P3 Pranav (app UI): design (`p3/design-system`)
 - **Look:** Frutiger Aero on iOS Liquid Glass over a night sky. Font: Plus Jakarta Sans. White text with soft shadows.
@@ -52,7 +54,7 @@ Last updated: 2026-10-11, Pranav (P3). Deadline: Devpost 10:00 AM Sun Oct 11, su
 - **Dependencies** (P3 owns `package.json`): added `@expo-google-fonts/plus-jakarta-sans`, re-added `expo-glass-effect`, removed `expo-blur`. Already installed and now used: `react-native-gesture-handler`, `react-native-worklets`, `react-native-svg`, `expo-linear-gradient`, `expo-symbols`.
 
 ### P3 Pranav: API catch-up (`p3/api-catchup`, PR open)
-- `src/api/` (P2's folder, done with the team's OK): token-signed client that surfaces backend error messages, ~18 new methods (auth, /me, prefs, manual log, sync status, ingest token, squads, history, friend card, delete) + matching mocks.
+- `src/api/`: merged `origin/main` and took P2's client (#19, #20) over our own version; screens now call P2's names (`profile`, `updateProfile`, `logSleep`, `deleteMyData`, `logout`). The client keeps the token itself.
 - Real login/signup (`state/user.tsx`, token in memory), goals + privacy saved via `/me/prefs` (`state/prefs.tsx`, optimistic with rollback), Log sleep -> `POST /me/sleep`, real squads (create / join / leave / members / share code), Improved / Squads boards and rank arrows from the API, friend card details, weekly insight card on Home, Trends / calendar / achievements from `/history`. Profile: edit profile, change password, Shortcut key (share sheet), sync status, delete my data.
 - `useOverview()` (`hooks/use-overview.ts`) loads the overview + 60 nights of history and refetches on pull-to-refresh, app foreground and after any user change (`version` bump).
 - Sample data removed except the stage split for hand-logged nights. Typecheck + lint clean (except the known template error), iOS bundle builds, mock flows smoke-tested. **Not yet tested against the live backend or end-to-end on a phone.**

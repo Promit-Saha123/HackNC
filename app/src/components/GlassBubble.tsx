@@ -30,29 +30,29 @@ export function GlassBubble({ size, style }: { size: number; style?: StyleProp<V
         <Defs>
           <RadialGradient id="lens" cx="50%" cy="50%" r="50%">
             <Stop offset="0.84" stopColor="#FFFFFF" stopOpacity={0} />
-            <Stop offset="0.93" stopColor="#E8F7FF" stopOpacity={0.18} />
-            <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.5} />
+            <Stop offset="0.93" stopColor="#BFD9FF" stopOpacity={0.08} />
+            <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.22} />
           </RadialGradient>
           <LinearGradient id="bubbleRim" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={1} />
-            <Stop offset="0.35" stopColor="#B9F2FF" stopOpacity={0.9} />
-            <Stop offset="0.7" stopColor="#FFC8EE" stopOpacity={0.85} />
-            <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.95} />
+            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.6} />
+            <Stop offset="0.35" stopColor="#9FD8FF" stopOpacity={0.5} />
+            <Stop offset="0.7" stopColor="#C9B4FF" stopOpacity={0.45} />
+            <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.5} />
           </LinearGradient>
         </Defs>
         <Circle cx={c} cy={c} r={rim} fill="url(#lens)" />
         <Circle cx={c} cy={c} r={rim} fill="none" stroke="url(#bubbleRim)" strokeWidth={3} />
-        <Circle cx={c} cy={c} r={rim - size * 0.03} fill="none" stroke="#FFFFFF" strokeOpacity={0.22} strokeWidth={size * 0.022} />
+        <Circle cx={c} cy={c} r={rim - size * 0.03} fill="none" stroke="#FFFFFF" strokeOpacity={0.08} strokeWidth={size * 0.022} />
         {/* Window-light highlight top-left, softer bounce bottom-right */}
-        <PathArc d={arcPath(c, rim - size * 0.035, 222, 336)} width={size * 0.03} opacity={0.9} />
-        <PathArc d={arcPath(c, rim - size * 0.035, 56, 146)} width={size * 0.016} opacity={0.5} />
+        <PathArc d={arcPath(c, rim - size * 0.035, 222, 336)} width={size * 0.03} opacity={0.55} />
+        <PathArc d={arcPath(c, rim - size * 0.035, 56, 146)} width={size * 0.016} opacity={0.28} />
         <Ellipse
           cx={c - size * 0.25}
           cy={c - size * 0.3}
           rx={size * 0.07}
           ry={size * 0.03}
           fill="#FFFFFF"
-          opacity={0.7}
+          opacity={0.4}
           transform={`rotate(-40 ${c - size * 0.25} ${c - size * 0.3})`}
         />
       </Svg>

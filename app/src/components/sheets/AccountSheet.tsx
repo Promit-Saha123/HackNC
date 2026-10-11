@@ -40,7 +40,7 @@ function ProfileForm({ profile, onDone }: { profile: Profile; onDone: (p: Profil
     setBusy(true);
     setError(null);
     try {
-      const p = await api.updateMe({ name: name.trim() !== profile.name ? name.trim() : null, bio: bio.trim() });
+      const p = await api.updateProfile({ name: name.trim() !== profile.name ? name.trim() : null, bio: bio.trim() });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onDone(p);
     } catch (e) {

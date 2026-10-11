@@ -1,13 +1,13 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
-import { setToken } from '@/api/client';
+import { api } from '@/api/client';
 import type { LoginResponse, User } from '@/api/types';
 
 type UserState = {
   userId: number;
   user: User | null;
   signedIn: boolean;
-  /** Store the token from /auth/login or /auth/signup; every request after this is signed. */
+  /** Remember the user from /auth/login or /auth/signup (the API client keeps the token and signs every request). */
   signIn: (res: LoginResponse) => void;
   signOut: () => void;
   /** Bumped after anything that changes the user's data (a logged night, new goals, a squad), so screens refetch. */
@@ -31,11 +31,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState(0);
 
   const signIn = useCallback((res: LoginResponse) => {
-    setToken(res.token);
     setUser(res.user);
   }, []);
   const signOut = useCallback(() => {
-    setToken(null);
+    api.logout();
     setUser(null);
   }, []);
   const bump = useCallback(() => setVersion((v) => v + 1), []);

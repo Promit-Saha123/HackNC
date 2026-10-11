@@ -28,7 +28,7 @@ type SheetKey = 'targets' | 'squad' | 'log';
 export default function ProfileScreen() {
   const { overview, error, refreshing, refresh } = useOverview();
   const { goals, squad, privacy, setPrivacy } = usePrefs();
-  const { signOut, userId, version } = useUser();
+  const { signOut, version } = useUser();
   const [sheet, setSheet] = useState<SheetKey | null>(null);
   const [info, setInfo] = useState<Info | null>(null);
   const [account, setAccount] = useState<AccountMode | null>(null);
@@ -37,7 +37,7 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     let live = true;
-    api.me().then((p) => live && setProfile(p)).catch(() => {});
+    api.profile().then((p) => live && setProfile(p)).catch(() => {});
     api.syncStatus().then((s) => live && setSync(s)).catch(() => {});
     return () => {
       live = false;
@@ -85,7 +85,7 @@ export default function ProfileScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await api.deleteData(userId);
+            await api.deleteMyData();
             signOut();
             router.replace('/login');
           } catch (e) {

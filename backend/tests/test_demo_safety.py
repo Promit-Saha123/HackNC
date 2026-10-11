@@ -12,6 +12,11 @@ def test_health_default_is_cheap():
     assert c.get("/health").json() == {"status": "ok"}
 
 
+def test_health_answers_head_requests_for_uptime_monitors():
+    r = c.head("/health")
+    assert r.status_code == 200 and r.content == b""  # HEAD: same status, no body (it was 405 before)
+
+
 def test_health_deep_in_memory_mode(monkeypatch):
     monkeypatch.setattr("app.main.settings.database_url", "")
     assert c.get("/health?deep=true").json() == {"status": "ok", "db": "memory"}

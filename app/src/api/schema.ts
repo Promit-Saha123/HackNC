@@ -11,7 +11,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Health */
+        /**
+         * Health
+         * @description Liveness by default (cheap). ?deep=true also pings the database and returns 503 if it's down, for uptime checks.
+         */
         get: operations["health_health_get"];
         put?: never;
         post?: never;
@@ -977,7 +980,9 @@ export type $defs = Record<string, never>;
 export interface operations {
     health_health_get: {
         parameters: {
-            query?: never;
+            query?: {
+                deep?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -991,6 +996,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

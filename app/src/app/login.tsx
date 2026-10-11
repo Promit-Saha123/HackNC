@@ -15,7 +15,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { api } from '@/api/client';
-import { ApiError, type LoginResponse, type User } from '@/api/types';
+import { ApiError } from '@/api/errors';
+import type { LoginResponse, User } from '@/api/types';
 import { Backdrop } from '@/components/Backdrop';
 import { Card } from '@/components/Card';
 import { GradientButton } from '@/components/GradientButton';

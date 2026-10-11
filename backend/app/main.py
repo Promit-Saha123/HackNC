@@ -16,7 +16,7 @@ app.add_middleware(
 )
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])  # HEAD too: many uptime monitors (UptimeRobot) probe with HEAD
 def health(deep: bool = False):
     """Liveness by default (cheap). ?deep=true also pings the database and returns 503 if it's down, for uptime checks."""
     if not deep:
