@@ -8,7 +8,12 @@
     "scheme": "sleepsquad",
     "userInterfaceStyle": "dark",
     "ios": {
-      "icon": "./assets/images/icon.png"
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "com.promits.sleepsquad",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -33,12 +38,31 @@
           "imageWidth": 120
         }
       ],
-      "expo-audio",
-      "expo-font"
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Somni uses the microphone for push-to-talk questions to your sleep coach."
+        }
+      ],
+      "expo-font",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "13eac4c6-c9b2-4e5e-9c91-1a391bc7a743"
+      }
+    },
+    "owner": "promits",
+    "updates": {
+      "url": "https://u.expo.dev/13eac4c6-c9b2-4e5e-9c91-1a391bc7a743"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }
