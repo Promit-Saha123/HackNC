@@ -468,6 +468,17 @@
             ],
             "title": "Badge"
           },
+          "prev_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prev Rank"
+          },
           "delta": {
             "anyOf": [
               {
@@ -500,6 +511,30 @@
           "score": {
             "type": "number",
             "title": "Score"
+          },
+          "bedtime": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bedtime"
+          },
+          "wake_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wake Time"
           }
         },
         "type": "object",
@@ -557,6 +592,11 @@
               }
             ],
             "title": "Badge"
+          },
+          "best_streak": {
+            "type": "integer",
+            "title": "Best Streak",
+            "default": 0
           }
         },
         "type": "object",

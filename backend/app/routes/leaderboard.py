@@ -13,7 +13,11 @@ router = APIRouter()
 @router.get("/leaderboard", response_model=Leaderboard)
 def leaderboard(period: Literal["week", "all", "improved"] = "week", squad: str | None = None):
     if period != "improved":
-        return store.leaderboard(period, squad)
+        lb = store.leaderboard(period, squad)
+        prev = {e.user_id: e.rank for e in store.leaderboard(period, squad, before=date.today()).entries}
+        for e in lb.entries:
+            e.prev_rank = prev.get(e.user_id)
+        return lb
     # Most improved: this week's average minus last week's. Only improvers are listed, there is no "worst" board.
     monday = date.today() - timedelta(days=date.today().weekday())
     now, before = store.weekly_avgs(monday), store.weekly_avgs(monday - timedelta(days=7))

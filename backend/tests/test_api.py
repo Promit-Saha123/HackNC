@@ -37,3 +37,10 @@ def test_ai_stubs():
     assert "not medical advice" in c.get("/ai/briefing/1").json()["text"]
     assert c.get("/ai/audio/missing.mp3").status_code == 404
     assert c.post("/ingest/1/token").status_code == 501
+
+def test_streak_extras_and_prev_rank():
+    o = c.get("/users/1/overview").json()
+    assert o["best_streak"] >= o["streak_days"]
+    assert o["history"][-1]["bedtime"] and o["history"][-1]["wake_time"]
+    e = c.get("/leaderboard?period=all").json()["entries"]
+    assert all(x["prev_rank"] is None or x["prev_rank"] >= 1 for x in e) and any(x["prev_rank"] for x in e)
