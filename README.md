@@ -131,7 +131,17 @@ The app runs in **Expo Go** on an iPhone and talks to the live API above, so the
    ```
    Scan the QR code with the iPhone camera. It opens in Expo Go.
 
-**Log in** as any demo friend: `Maya`, `Jordan`, `Sam`, `Riley`, `Alex`, `Priya`, `Chris` or `Dana`, with the password `sleepsquad`. Or sign up for a fresh account.
+#### Try it yourself (demo login)
+Use this account to explore the full app in Expo Go, with nothing to sign up for:
+
+| | |
+|---|---|
+| **Username** | `somnia-demo` |
+| **Password** | `sleepy3210` |
+
+It's a demo account on the live API, so you can look around the score, leaderboards, squads, briefing and Somni chat, log a night by hand, and join a demo squad with the code `WOLF23`. Please don't use a real password anywhere in this app.
+
+You can also **log in** as any demo friend: `Maya`, `Jordan`, `Sam`, `Riley`, `Alex`, `Priya`, `Chris` or `Dana`, with the password `sleepsquad`. Or sign up for a fresh account.
 **Join a demo squad** with the invite code `WOLF23`, `OWLS42` or `RATS17`.
 
 The demo friends are labelled demo profiles with synthetic data. Real accounts never appear in the login screen's account list; they show up only on the leaderboards and squads they join.
