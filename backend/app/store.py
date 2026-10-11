@@ -80,6 +80,11 @@ class Store:
     def has_user(self, uid: int) -> bool:
         return uid in self.users
 
+    def delete_user(self, uid: int) -> None:
+        """Remove the user and all their rows."""
+        for table in (self.users, self.nights, self.scores):
+            table.pop(uid, None)
+
     def recent_nights(self, uid: int, limit: int = 28) -> list[SleepNight]:
         """Last `limit` nights, oldest first (for the weekly AI insight)."""
         return self.nights.get(uid, [])[-limit:]
@@ -171,6 +176,13 @@ class SqlStore:
     def has_user(self, uid: int) -> bool:
         with get_pool().connection() as c:
             return c.execute("SELECT 1 FROM users WHERE id = %s", (uid,)).fetchone() is not None
+
+    def delete_user(self, uid: int) -> None:
+        """Children first (foreign keys), one transaction."""
+        with get_pool().connection() as c:
+            for table in ("daily_scores", "sleep_sessions"):
+                c.execute(f"DELETE FROM {table} WHERE user_id = %s", (uid,))
+            c.execute("DELETE FROM users WHERE id = %s", (uid,))
 
     def recent_nights(self, uid: int, limit: int = 28) -> list[SleepNight]:
         """Last `limit` nights, oldest first (for the weekly AI insight)."""

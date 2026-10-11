@@ -82,6 +82,39 @@
         }
       }
     },
+    "/users/{user_id}/data": {
+      "delete": {
+        "summary": "Delete Data",
+        "description": "Privacy: remove a user's rows. Demo profiles are shared by the whole squad, so they can't be deleted.",
+        "operationId": "delete_data_users__user_id__data_delete",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sleep/shortcut": {
       "post": {
         "summary": "Shortcut",

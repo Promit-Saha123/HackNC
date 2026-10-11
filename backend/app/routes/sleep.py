@@ -85,6 +85,17 @@ def overview(user_id: int):
     return result
 
 
+@router.delete("/users/{user_id}/data", status_code=204)
+def delete_data(user_id: int):
+    """Privacy: remove a user's rows. Demo profiles are shared by the whole squad, so they can't be deleted."""
+    user = next((u for u in store.list_users() if u.id == user_id), None)
+    if user is None:
+        raise HTTPException(404, "unknown user")
+    if user.is_demo:
+        raise HTTPException(403, "demo profiles can't be deleted")
+    store.delete_user(user_id)
+
+
 @router.post("/sleep/shortcut", response_model=ShortcutResult)
 async def shortcut(request: Request, x_user_id: int = Header(...)):
     """Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line."""
