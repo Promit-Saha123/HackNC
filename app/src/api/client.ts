@@ -3,7 +3,8 @@ import { localIso } from './time';
 import { mockClient } from './mockClient';
 import type { Api, Briefing, ChatReply, LoginResponse, Transcript, User } from './types';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+// localhost is a dev-only fallback; release builds must get the Render URL from eas.json.
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? (__DEV__ ? 'http://localhost:8000' : 'https://sleep-squad-api.onrender.com');
 export const USE_MOCKS = process.env.EXPO_PUBLIC_USE_MOCKS !== 'false';
 
 // Signed-in token, kept in memory: log in again after an app restart (no extra storage dependency).
@@ -29,11 +30,19 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  const init = { method, headers, body: body === undefined ? undefined : JSON.stringify(body) };
+  // Render's free tier sleeps and needs up to ~60 s to wake: allow it, and retry reads once on a network failure.
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { ...init, signal: AbortSignal.timeout(65_000) });
+  } catch (e) {
+    if (method !== 'GET') throw new ApiError(0, 'Could not reach the server. Check your connection and try again.');
+    try {
+      res = await fetch(`${BASE_URL}${path}`, { ...init, signal: AbortSignal.timeout(65_000) });
+    } catch {
+      throw new ApiError(0, 'Could not reach the server. It may be waking up, so try again in a moment.');
+    }
+  }
   if (!res.ok) throw new ApiError(res.status, await errorMessage(res));
   const text = await res.text(); // 204s have no body
   return (text ? JSON.parse(text) : undefined) as T;
