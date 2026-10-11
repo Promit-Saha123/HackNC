@@ -1,6 +1,6 @@
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { api, authHeaders } from '@/api/client';
@@ -96,31 +96,46 @@ export function BriefingCard({ userId, refreshKey }: Props) {
  */
 function useBriefingAudio(url: string | null) {
   const [requested, setRequested] = useState<string | null>(null);
-  const source = url && requested === url ? url : null;
-  const autoPlayed = useRef<string | null>(null);
-  // The audio endpoint is private to the signed-in user (STRICT_PRIVACY), so send the token with it.
-  const player = useAudioPlayer(source ? { uri: source, headers: authHeaders() } : null);
+  const [timedOut, setTimedOut] = useState(false);
+  // One long-lived player (like Somni chat): the source is swapped in with replace() on the first tap,
+  // because passing a changing source to the hook rebuilds the player and its status never reports loaded.
+  const player = useAudioPlayer(null);
   const status = useAudioPlayerStatus(player);
+  const asked = !!url && requested === url;
 
   useEffect(() => {
     setAudioModeAsync({ playsInSilentMode: true }).catch(() => {}); // iPhone silent switch would mute it otherwise
   }, []);
 
-  // First tap sets the source; start playing as soon as the MP3 has loaded.
+  // A new briefing (different url) starts fresh.
   useEffect(() => {
-    if (source && status.isLoaded && autoPlayed.current !== source) {
-      autoPlayed.current = source;
-      player.play();
-    }
-  }, [source, status.isLoaded, player]);
+    setRequested(null);
+    setTimedOut(false);
+    player.pause();
+  }, [url, player]);
+
+  const preparing = asked && !status.isLoaded && !status.error && !timedOut;
+
+  // Never spin forever: the backend generates the MP3 on first request (cold start + ElevenLabs).
+  useEffect(() => {
+    if (!preparing) return;
+    const id = setTimeout(() => setTimedOut(true), 20000);
+    return () => clearTimeout(id);
+  }, [preparing]);
+
+  console.log('briefing audio', { url, asked, loaded: status.isLoaded, buffering: status.isBuffering, error: status.error, timedOut });
 
   const finished = status.duration > 0 && status.currentTime >= status.duration - 0.25;
-  const preparing = (!!source && !status.isLoaded) || status.isBuffering;
-  const unavailable = !!status.error;
+  const unavailable = !!status.error || timedOut;
   const toggle = () => {
     if (!url) return;
     if (status.playing) return player.pause();
-    if (!source) return setRequested(url);
+    if (!asked) {
+      setRequested(url);
+      setTimedOut(false);
+      player.replace({ uri: url, headers: authHeaders() });
+      return player.play();
+    }
     if (finished) player.seekTo(0);
     player.play();
   };
