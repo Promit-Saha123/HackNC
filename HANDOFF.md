@@ -28,7 +28,7 @@ v1 in progress. Last tag: v0 (scaffold).
 ## How to run right now
 - Backend: `cd backend; .\.venv\Scripts\Activate.ps1; uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
 - App: `cd app; npx expo start --tunnel` (mocks on by default: `app/.env.example`)
-- Expo tunnel: `npx expo start --tunnel` (`@expo/ngrok` is now an app devDependency, so there is no install prompt). Backend tunnel URL (cloudflared): none running.
+- Expo tunnel: `npx expo start --tunnel` (`@expo/ngrok` is now an app devDependency, so there is no install prompt). Backend tunnel URL (cloudflared, restarted 2026-10-11 02:22 UTC after a low-memory kill, changes every run): https://quebec-clone-translations-experience.trycloudflare.com. Promit's real user is id 9 (`X-User-Id: 9`); do not run `seed.py --reset` or it is wiped. `cloudflared` lives at `C:\Program Files (x86)\cloudflared\cloudflared.exe` (not on PATH in every shell).
 
 ## Known bugs / notes
 - `npx expo lint` and `npm run typecheck` run. Lint has 1 error in the template file `app/src/hooks/use-color-scheme.web.ts` (setState in effect, web only); not ours, fix when touching web.
