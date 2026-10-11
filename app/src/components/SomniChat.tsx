@@ -53,7 +53,7 @@ export function SomniButton({ userId, name }: { userId: number; name?: string })
 type Props = { visible: boolean; onClose: () => void; userId: number; name?: string };
 
 /**
- * Somni chat: Gemini answers about the user's own Sleep Squad data only (backend: POST /ai/chat/{id}).
+ * Somni chat: Gemini answers about the user's own Somnia data only (backend: POST /ai/chat/{id}).
  * Voice: tap the mic, speak, tap again. ElevenLabs transcribes the question and Somni's reply is spoken back.
  */
 export function SomniChat({ visible, onClose, userId, name }: Props) {
@@ -147,7 +147,7 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
           </View>
           <View style={styles.headerText}>
             <Text style={t.section}>Somni</Text>
-            <Text style={t.caption}>Your sleep coach · answers from your Sleep Squad data</Text>
+            <Text style={t.caption}>Your sleep coach · answers from your Somnia data</Text>
           </View>
           <Pressable accessibilityLabel="Close chat" onPress={close} hitSlop={12} style={styles.close}>
             <SymbolView name="xmark" size={14} tintColor={colors.textSoft} />
@@ -224,7 +224,7 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
             <SymbolView name="arrow.up" size={16} tintColor={colors.onAccent} />
           </Pressable>
         </View>
-        <Text style={[t.caption, styles.footer]}>Somni only uses your Sleep Squad data. Not medical advice.</Text>
+        <Text style={[t.caption, styles.footer]}>Somni only uses your Somnia data. Not medical advice.</Text>
       </KeyboardAvoidingView>
     </Modal>
   );

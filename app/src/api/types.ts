@@ -87,7 +87,7 @@ export interface Api {
    */
   deleteMyData(): Promise<void>;
 
-  // --- Somni, the in-app chatbot (Gemini), scoped to the user's own Sleep Squad data. ---
+  // --- Somni, the in-app chatbot (Gemini), scoped to the user's own Somnia data. ---
   /**
    * Send the conversation so far (oldest first, ending with the user's question). 429 if chatting too fast.
    * `speak: true` (voice chat) also returns `audio_url`: Somni's reply read aloud by ElevenLabs.

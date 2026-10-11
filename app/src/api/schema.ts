@@ -271,7 +271,7 @@ export interface paths {
         put?: never;
         /**
          * Chat
-         * @description Somni chatbot: answers questions about the user's own Sleep Squad data only (see integrations/somni.py).
+         * @description Somni chatbot: answers questions about the user's own Somnia data only (see integrations/somni.py).
          */
         post: operations["chat_ai_chat__user_id__post"];
         delete?: never;
