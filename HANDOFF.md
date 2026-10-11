@@ -11,6 +11,7 @@ v1 in progress. Last tag: v0 (scaffold).
 - 2026-10-10 P3 Pranav (`p3/design-system`, PR #5): new design replaces Frutiger Aero: deep black + white/gray theme, Plus Jakarta Sans, no glass (removed `expo-glass-effect`/`expo-blur`). Login screen (hard-coded demo: any demo name, password `sleepsquad`). Screens moved to `app/src/app/(tabs)/`. 5 tabs: Home (no-scroll, night-clock outer ring + sleep-stage inner ring, briefing row, Log sleep / Targets / Squads actions, calendar), Leaderboard (podium, Weekly / All-time / Improved / Squads, rank arrows, friend card), Trends, Achievements, Profile (goals, privacy, squad, log out). Tap-for-details pop-ups everywhere. P2's `BriefingCard` restyled as a compact Home row that opens the full text in a sheet.
 
 - 2026-10-10 Promit (branch `backend`, not yet merged): Tiger Cloud live. Schema applied, seeded (8 users, 480 sessions, 480 scores; both hypertables), `store.py` now has `SqlStore` selected when `DATABASE_URL` is set (else in-memory `Store`, so a fresh clone still runs). Parity with the in-memory store checked; 12 tests pass; shortcut write path tested. Response shapes unchanged.
+- 2026-10-10 Promit (PR #6, merged): `Insight` model in `models.py` and `recent_nights(uid, limit=28)` on `Store`/`SqlStore` for P2's weekly insight. SQL version untested.
 
 ## In progress
 - P1 Promit, branch `backend`: next is the iOS Shortcut + cloudflared tunnel test.
@@ -27,6 +28,8 @@ v1 in progress. Last tag: v0 (scaffold).
 - P1 (asks from P3): nightly bed/wake times for past nights, best streak, previous rank (for rank arrows); endpoints to save targets, privacy toggles, manual logs, squads; delete-my-data; real login. Until then the app uses labelled sample data (`app/src/data/sample.ts`) and in-memory state.
 
 ## Blockers / decisions needed
+- Enable Gemini billing before the demo (free tier ran out on gemini-3.8-flash; fallback models + template exist).
+- P2: rebase `p2/weekly-insight` on main, then regenerate `openapi.json` / `schema.ts` (Insight is now in `models.py`).
 - Teammates need collaborator access to the GitHub repo (Promit adds them).
 - P2 / P3 names are placeholders in the docs; the team knows who they are.
 
@@ -45,4 +48,4 @@ v1 in progress. Last tag: v0 (scaffold).
 - CLAUDE.md "Design brief" still says Frutiger Aero / Liquid Glass and "pick-your-user"; the app now uses the black/white design and a login screen. Needs a team decision + doc update.
 - App: login, targets, logged nights and squads are in memory only (lost on reload). Sleep stages are demo data. Rank arrows compare against the previous night's ranking. Improved / Squads boards are computed in the app until the real endpoints are wired.
 
-Last updated: 2026-10-10, Pranav (P3)
+Last updated: 2026-10-10, Promit (P1)
