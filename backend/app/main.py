@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routes import ai, ingest, leaderboard, sleep
+from .routes import ai, auth, ingest, leaderboard, sleep
 
 app = FastAPI(title="Sleep Squad API")
 
@@ -19,5 +19,5 @@ def health():
     return {"status": "ok"}
 
 
-for module in (sleep, leaderboard, ai, ingest):
+for module in (sleep, leaderboard, ai, ingest, auth):
     app.include_router(module.router)

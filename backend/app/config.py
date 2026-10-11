@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     whoop_client_id: str = ""
     whoop_client_secret: str = ""
     cors_origins: str = "*"
+    auth_secret: str = "dev-secret-change-me"  # set AUTH_SECRET in backend/.env for the demo
 
 
 settings = Settings()

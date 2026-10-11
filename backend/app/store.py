@@ -69,6 +69,7 @@ class Store:
         self.users: dict[int, User] = {}
         self.nights: dict[int, list[SleepNight]] = {}
         self.scores: dict[int, list] = {}
+        self.hashes: dict[int, str] = {}
         for uid, (name, squad, bed_h, sleep_h, kind) in enumerate(PROFILES, start=1):
             self.users[uid] = User(id=uid, name=name, squad=squad, source="seed", is_demo=True)
             self.nights[uid] = _gen_nights(uid, bed_h, sleep_h, kind, today)
@@ -84,6 +85,14 @@ class Store:
         """Remove the user and all their rows."""
         for table in (self.users, self.nights, self.scores):
             table.pop(uid, None)
+
+    def login_info(self, name: str) -> tuple[User, str | None] | None:
+        """(user, password_hash) for a case-insensitive name, or None."""
+        u = next((u for u in self.users.values() if u.name.lower() == name.strip().lower()), None)
+        return (u, self.hashes.get(u.id)) if u else None
+
+    def set_password(self, uid: int, hashed: str) -> None:
+        self.hashes[uid] = hashed
 
     def recent_nights(self, uid: int, limit: int = 28) -> list[SleepNight]:
         """Last `limit` nights, oldest first (for the weekly AI insight)."""
@@ -183,6 +192,18 @@ class SqlStore:
             for table in ("daily_scores", "sleep_sessions"):
                 c.execute(f"DELETE FROM {table} WHERE user_id = %s", (uid,))
             c.execute("DELETE FROM users WHERE id = %s", (uid,))
+
+    def login_info(self, name: str) -> tuple[User, str | None] | None:
+        with get_pool().connection() as c:
+            r = c.execute(
+                "SELECT id, name, squad, source, is_demo, password_hash FROM users WHERE lower(name) = lower(%s)",
+                (name.strip(),),
+            ).fetchone()
+        return (User(**{k: r[k] for k in User.model_fields}), r["password_hash"]) if r else None
+
+    def set_password(self, uid: int, hashed: str) -> None:
+        with get_pool().connection() as c:
+            c.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hashed, uid))
 
     def recent_nights(self, uid: int, limit: int = 28) -> list[SleepNight]:
         """Last `limit` nights, oldest first (for the weekly AI insight)."""
