@@ -175,7 +175,7 @@ API docs at http://localhost:8000/docs. With no `DATABASE_URL` the backend serve
 | `python scripts/export_openapi.py` | Regenerates `shared/openapi.json` (then `npm run gen:api` in `app/`). |
 
 #### Deployment
- the backend runs on Render (Ohio, next to Tiger Cloud) from [`render.yaml`](render.yaml), with pinned requirements and auto-deploy from `main`.
+The backend runs on Render (Ohio, next to Tiger Cloud) from [`render.yaml`](render.yaml), with pinned requirements and auto-deploy from `main`.
 
 ## API at a glance
 
