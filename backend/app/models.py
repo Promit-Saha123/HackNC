@@ -103,6 +103,7 @@ class NightScore(BaseModel):
     score: float
     bedtime: dt.datetime | None = None
     wake_time: dt.datetime | None = None
+    duration_min: int | None = None  # minutes asleep
 
 
 class Overview(BaseModel):

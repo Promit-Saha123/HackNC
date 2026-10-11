@@ -160,7 +160,9 @@ class Store:
             last_night=nights[-1],
             score=scores[-1],
             history=[
-                NightScore(day=n.day, score=s.score, bedtime=n.bedtime, wake_time=n.wake_time)
+                NightScore(
+                    day=n.day, score=s.score, bedtime=n.bedtime, wake_time=n.wake_time, duration_min=n.duration_min
+                )
                 for n, s in zip(nights[-7:], scores[-7:])
             ],
             streak_days=streak,
@@ -334,7 +336,7 @@ class SqlStore:
                 return Overview(user=user)
             recent = c.execute(
                 f"SELECT d.time::date AS day, {SCORE_COLS},"
-                " s.time AS bedtime, s.end_time AS wake_time FROM daily_scores d"
+                " s.time AS bedtime, s.end_time AS wake_time, s.duration_min FROM daily_scores d"
                 " LEFT JOIN sleep_sessions s ON s.user_id = d.user_id AND s.end_time::date = d.time::date"
                 " WHERE d.user_id = %s ORDER BY d.time DESC LIMIT 7", (uid,)
             ).fetchall()[::-1]  # oldest first
@@ -344,7 +346,10 @@ class SqlStore:
             user=user,
             last_night=_night(last),
             score=score,
-            history=[NightScore(**_naive({k: r[k] for k in ("day", "score", "bedtime", "wake_time")})) for r in recent],
+            history=[
+                NightScore(**_naive({k: r[k] for k in ("day", "score", "bedtime", "wake_time", "duration_min")}))
+                for r in recent
+            ],
             streak_days=score.streak_days,
             badge=badge_for(score.streak_days),
             best_streak=best,
