@@ -1,18 +1,41 @@
-import { DefaultTheme, ThemeProvider } from 'expo-router';
+import { useFonts } from 'expo-font';
+import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { PrefsProvider } from '@/state/prefs';
 import { UserProvider } from '@/state/user';
+import { colors } from '@/theme/colors';
+import { fontAssets } from '@/theme/fonts';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function TabLayout() {
+const theme = {
+  ...DarkTheme,
+  colors: { ...DarkTheme.colors, background: colors.bg, card: colors.tabBar, border: colors.divider, primary: colors.tabActive },
+};
+
+export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts(fontAssets);
+  const ready = fontsLoaded || !!fontError;
+
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync();
+  }, [ready]);
+
+  if (!ready) return null;
+
   return (
-    <ThemeProvider value={DefaultTheme}>
+    <ThemeProvider value={theme}>
       <UserProvider>
-        <AnimatedSplashOverlay />
-        <AppTabs />
+        <PrefsProvider>
+          <StatusBar style="light" />
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, animation: 'fade' }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="login" options={{ gestureEnabled: false }} />
+          </Stack>
+        </PrefsProvider>
       </UserProvider>
     </ThemeProvider>
   );
