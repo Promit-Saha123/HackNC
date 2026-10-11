@@ -39,6 +39,7 @@ function makeOverview(user: User, scores: number[], hours: number, streak: numbe
     },
     history: scores.map((score, i) => ({ day: day(scores.length - 1 - i), score })),
     streak_days: streak,
+    best_streak: streak,
     badge,
   };
 }

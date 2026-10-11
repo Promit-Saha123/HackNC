@@ -55,6 +55,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/{user_id}/data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Data
+         * @description Privacy: remove a user's rows (own account only). Demo profiles are shared by the whole squad, so they can't be deleted.
+         */
+        delete: operations["delete_data_users__user_id__data_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sleep/shortcut": {
         parameters: {
             query?: never;
@@ -67,6 +87,7 @@ export interface paths {
         /**
          * Shortcut
          * @description Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line.
+         *     Auth: X-Ingest-Token (from POST /ingest/token). A bare X-User-Id is accepted for demo profiles only.
          */
         post: operations["shortcut_sleep_shortcut_post"];
         delete?: never;
@@ -104,6 +125,27 @@ export interface paths {
          * @description Squad vs squad: average member score.
          */
         get: operations["squads_leaderboard_squads_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{user_id}/card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Friend Card
+         * @description Friend card. Score and streak are always shown; bedtime and hours only if the user turned on sharing.
+         *     Users who hid themselves from the leaderboard are visible only to themselves.
+         */
+        get: operations["friend_card_users__user_id__card_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -166,7 +208,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/ingest/{user_id}/token": {
+    "/ingest/token": {
         parameters: {
             query?: never;
             header?: never;
@@ -176,10 +218,117 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Create Token
-         * @description v3: per-user ingest token for the Shortcut (replaces the bare X-User-Id).
+         * Ingest Token
+         * @description Per-user token for the Shortcut's X-Ingest-Token header (replaces the bare X-User-Id).
          */
-        post: operations["create_token_ingest__user_id__token_post"];
+        post: operations["ingest_token_ingest_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Login */
+        post: operations["login_auth_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Me */
+        get: operations["me_auth_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/prefs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Prefs */
+        get: operations["get_prefs_me_prefs_get"];
+        /** Put Prefs */
+        put: operations["put_prefs_me_prefs_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/sleep": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Log Night
+         * @description Log a night by hand; one night per wake date, a new entry replaces the old.
+         */
+        post: operations["log_night_me_sleep_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/squad": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Squad */
+        get: operations["my_squad_me_squad_get"];
+        put?: never;
+        /** Create Squad */
+        post: operations["create_squad_me_squad_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/squad/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Join Squad */
+        post: operations["join_squad_me_squad_join_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -199,10 +348,51 @@ export interface components {
             /** Audio Url */
             audio_url?: string | null;
         };
+        /**
+         * FriendCard
+         * @description What a friend sees: score + streak always; details only if the user opted in (Prefs.share_details).
+         */
+        FriendCard: {
+            /** User Id */
+            user_id: number;
+            /** Name */
+            name: string;
+            /** Squad */
+            squad?: string | null;
+            /** Score */
+            score?: number | null;
+            /**
+             * Streak Days
+             * @default 0
+             */
+            streak_days: number;
+            /**
+             * Best Streak
+             * @default 0
+             */
+            best_streak: number;
+            /** Badge */
+            badge?: string | null;
+            details?: components["schemas"]["FriendDetails"] | null;
+        };
+        /** FriendDetails */
+        FriendDetails: {
+            /** Avg Bedtime */
+            avg_bedtime: number;
+            /** Avg Hours */
+            avg_hours: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** IngestToken */
+        IngestToken: {
+            /** User Id */
+            user_id: number;
+            /** Token */
+            token: string;
         };
         /**
          * Insight
@@ -249,8 +439,39 @@ export interface components {
             streak_days: number;
             /** Badge */
             badge?: string | null;
+            /** Prev Rank */
+            prev_rank?: number | null;
             /** Delta */
             delta?: number | null;
+        };
+        /** LoginRequest */
+        LoginRequest: {
+            /** Username */
+            username: string;
+            /** Password */
+            password: string;
+        };
+        /** LoginResponse */
+        LoginResponse: {
+            user: components["schemas"]["User"];
+            /** Token */
+            token: string;
+        };
+        /**
+         * ManualNight
+         * @description A night typed in by hand. Send device-local wall-clock ISO times WITHOUT a UTC offset.
+         */
+        ManualNight: {
+            /**
+             * Bed
+             * Format: date-time
+             */
+            bed: string;
+            /**
+             * Wake
+             * Format: date-time
+             */
+            wake: string;
         };
         /** NightScore */
         NightScore: {
@@ -261,6 +482,10 @@ export interface components {
             day: string;
             /** Score */
             score: number;
+            /** Bedtime */
+            bedtime?: string | null;
+            /** Wake Time */
+            wake_time?: string | null;
         };
         /** Overview */
         Overview: {
@@ -279,6 +504,42 @@ export interface components {
             streak_days: number;
             /** Badge */
             badge?: string | null;
+            /**
+             * Best Streak
+             * @default 0
+             */
+            best_streak: number;
+        };
+        /**
+         * Prefs
+         * @description Per-user goals and privacy toggles. Times are minutes after midnight.
+         */
+        Prefs: {
+            /**
+             * Bedtime
+             * @default 1365
+             */
+            bedtime: number;
+            /**
+             * Wake
+             * @default 420
+             */
+            wake: number;
+            /**
+             * Hours
+             * @default 8
+             */
+            hours: number;
+            /**
+             * Share Details
+             * @default true
+             */
+            share_details: boolean;
+            /**
+             * Show On Board
+             * @default true
+             */
+            show_on_board: boolean;
         };
         /** ScoreBreakdown */
         ScoreBreakdown: {
@@ -338,6 +599,11 @@ export interface components {
             /** Source */
             source: string;
         };
+        /** SquadCreate */
+        SquadCreate: {
+            /** Name */
+            name: string;
+        };
         /** SquadEntry */
         SquadEntry: {
             /** Rank */
@@ -348,6 +614,18 @@ export interface components {
             score: number;
             /** Members */
             members: number;
+        };
+        /** SquadInfo */
+        SquadInfo: {
+            /** Name */
+            name: string;
+            /** Code */
+            code: string;
+        };
+        /** SquadJoin */
+        SquadJoin: {
+            /** Code */
+            code: string;
         };
         /** SquadLeaderboard */
         SquadLeaderboard: {
@@ -468,11 +746,43 @@ export interface operations {
             };
         };
     };
+    delete_data_users__user_id__data_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     shortcut_sleep_shortcut_post: {
         parameters: {
             query?: never;
-            header: {
-                "x-user-id": number;
+            header?: {
+                "x-ingest-token"?: string;
+                "x-user-id"?: number | null;
             };
             path?: never;
             cookie?: never;
@@ -549,6 +859,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SquadLeaderboard"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    friend_card_users__user_id__card_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FriendCard"];
                 };
             };
             /** @description Validation Error */
@@ -655,13 +998,13 @@ export interface operations {
             };
         };
     };
-    create_token_ingest__user_id__token_post: {
+    ingest_token_ingest_token_post: {
         parameters: {
             query?: never;
-            header?: never;
-            path: {
-                user_id: number;
+            header?: {
+                authorization?: string;
             };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -672,7 +1015,273 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["IngestToken"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    login_auth_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    me_auth_me_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_prefs_me_prefs_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Prefs"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_prefs_me_prefs_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Prefs"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Prefs"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    log_night_me_sleep_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualNight"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SleepNight"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_squad_me_squad_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SquadInfo"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_squad_me_squad_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SquadCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SquadInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    join_squad_me_squad_join_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SquadJoin"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SquadInfo"];
                 };
             };
             /** @description Validation Error */

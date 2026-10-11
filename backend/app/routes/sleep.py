@@ -1,8 +1,9 @@
 import re
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
+from ..auth import current_user_id, ingest_user_id
 from ..models import Overview, ShortcutResult, SleepNight, User
 from ..store import store
 
@@ -85,11 +86,29 @@ def overview(user_id: int):
     return result
 
 
-@router.post("/sleep/shortcut", response_model=ShortcutResult)
-async def shortcut(request: Request, x_user_id: int = Header(...)):
-    """Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line."""
-    if not store.has_user(x_user_id):
+@router.delete("/users/{user_id}/data", status_code=204)
+def delete_data(user_id: int, uid: int = Depends(current_user_id)):
+    """Privacy: remove a user's rows (own account only). Demo profiles are shared by the whole squad, so they can't be deleted."""
+    if uid != user_id:
+        raise HTTPException(403, "you can only delete your own data")
+    user = next((u for u in store.list_users() if u.id == user_id), None)
+    if user is None:
         raise HTTPException(404, "unknown user")
+    if user.is_demo:
+        raise HTTPException(403, "demo profiles can't be deleted")
+    store.delete_user(user_id)
+
+
+@router.post("/sleep/shortcut", response_model=ShortcutResult)
+async def shortcut(request: Request, x_ingest_token: str = Header(""), x_user_id: int | None = Header(None)):
+    """Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line.
+    Auth: X-Ingest-Token (from POST /ingest/token). A bare X-User-Id is accepted for demo profiles only."""
+    x_user_id = ingest_user_id(x_ingest_token) if x_ingest_token else x_user_id
+    user = next((u for u in store.list_users() if u.id == x_user_id), None)
+    if user is None:
+        raise HTTPException(404 if x_user_id is not None else 401, "unknown user" if x_user_id is not None else "missing X-Ingest-Token")
+    if not user.is_demo and not x_ingest_token:
+        raise HTTPException(401, "this account needs an X-Ingest-Token")
     samples, skipped = parse_samples((await request.body()).decode("utf-8", errors="replace"))
     nights = samples_to_nights(samples)
     if nights:

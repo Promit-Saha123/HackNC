@@ -82,18 +82,78 @@
         }
       }
     },
-    "/sleep/shortcut": {
-      "post": {
-        "summary": "Shortcut",
-        "description": "Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line.",
-        "operationId": "shortcut_sleep_shortcut_post",
+    "/users/{user_id}/data": {
+      "delete": {
+        "summary": "Delete Data",
+        "description": "Privacy: remove a user's rows (own account only). Demo profiles are shared by the whole squad, so they can't be deleted.",
+        "operationId": "delete_data_users__user_id__data_delete",
         "parameters": [
           {
-            "name": "x-user-id",
-            "in": "header",
+            "name": "user_id",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "integer",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sleep/shortcut": {
+      "post": {
+        "summary": "Shortcut",
+        "description": "Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line.\nAuth: X-Ingest-Token (from POST /ingest/token). A bare X-User-Id is accepted for demo profiles only.",
+        "operationId": "shortcut_sleep_shortcut_post",
+        "parameters": [
+          {
+            "name": "x-ingest-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Ingest-Token"
+            }
+          },
+          {
+            "name": "x-user-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "X-User-Id"
             }
           }
@@ -228,6 +288,56 @@
         }
       }
     },
+    "/users/{user_id}/card": {
+      "get": {
+        "summary": "Friend Card",
+        "description": "Friend card. Score and streak are always shown; bedtime and hours only if the user turned on sharing.\nUsers who hid themselves from the leaderboard are visible only to themselves.",
+        "operationId": "friend_card_users__user_id__card_get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendCard"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/briefing/{user_id}": {
       "get": {
         "summary": "Briefing",
@@ -344,19 +454,20 @@
         }
       }
     },
-    "/ingest/{user_id}/token": {
+    "/ingest/token": {
       "post": {
-        "summary": "Create Token",
-        "description": "v3: per-user ingest token for the Shortcut (replaces the bare X-User-Id).",
-        "operationId": "create_token_ingest__user_id__token_post",
+        "summary": "Ingest Token",
+        "description": "Per-user token for the Shortcut's X-Ingest-Token header (replaces the bare X-User-Id).",
+        "operationId": "ingest_token_ingest_token_post",
         "parameters": [
           {
-            "name": "user_id",
-            "in": "path",
-            "required": true,
+            "name": "authorization",
+            "in": "header",
+            "required": false,
             "schema": {
-              "type": "integer",
-              "title": "User Id"
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
             }
           }
         ],
@@ -365,7 +476,372 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/IngestToken"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Login",
+        "operationId": "login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "summary": "Me",
+        "operationId": "me_auth_me_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/prefs": {
+      "get": {
+        "summary": "Get Prefs",
+        "operationId": "get_prefs_me_prefs_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Prefs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Put Prefs",
+        "operationId": "put_prefs_me_prefs_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Prefs"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Prefs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/sleep": {
+      "post": {
+        "summary": "Log Night",
+        "description": "Log a night by hand; one night per wake date, a new entry replaces the old.",
+        "operationId": "log_night_me_sleep_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualNight"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SleepNight"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/squad": {
+      "get": {
+        "summary": "My Squad",
+        "operationId": "my_squad_me_squad_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SquadInfo"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response My Squad Me Squad Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Squad",
+        "operationId": "create_squad_me_squad_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SquadCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SquadInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/squad/join": {
+      "post": {
+        "summary": "Join Squad",
+        "operationId": "join_squad_me_squad_join_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SquadJoin"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SquadInfo"
+                }
               }
             }
           },
@@ -414,6 +890,96 @@
         ],
         "title": "Briefing"
       },
+      "FriendCard": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "squad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Squad"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "streak_days": {
+            "type": "integer",
+            "title": "Streak Days",
+            "default": 0
+          },
+          "best_streak": {
+            "type": "integer",
+            "title": "Best Streak",
+            "default": 0
+          },
+          "badge": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Badge"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FriendDetails"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name"
+        ],
+        "title": "FriendCard",
+        "description": "What a friend sees: score + streak always; details only if the user opted in (Prefs.share_details)."
+      },
+      "FriendDetails": {
+        "properties": {
+          "avg_bedtime": {
+            "type": "integer",
+            "title": "Avg Bedtime"
+          },
+          "avg_hours": {
+            "type": "number",
+            "title": "Avg Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "avg_bedtime",
+          "avg_hours"
+        ],
+        "title": "FriendDetails"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -426,6 +992,24 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "IngestToken": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "token"
+        ],
+        "title": "IngestToken"
       },
       "Insight": {
         "properties": {
@@ -543,6 +1127,17 @@
             ],
             "title": "Badge"
           },
+          "prev_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prev Rank"
+          },
           "delta": {
             "anyOf": [
               {
@@ -565,6 +1160,62 @@
         ],
         "title": "LeaderboardEntry"
       },
+      "LoginRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest"
+      },
+      "LoginResponse": {
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user",
+          "token"
+        ],
+        "title": "LoginResponse"
+      },
+      "ManualNight": {
+        "properties": {
+          "bed": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Bed"
+          },
+          "wake": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Wake"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bed",
+          "wake"
+        ],
+        "title": "ManualNight",
+        "description": "A night typed in by hand. Send device-local wall-clock ISO times WITHOUT a UTC offset."
+      },
       "NightScore": {
         "properties": {
           "day": {
@@ -575,6 +1226,30 @@
           "score": {
             "type": "number",
             "title": "Score"
+          },
+          "bedtime": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bedtime"
+          },
+          "wake_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wake Time"
           }
         },
         "type": "object",
@@ -632,6 +1307,11 @@
               }
             ],
             "title": "Badge"
+          },
+          "best_streak": {
+            "type": "integer",
+            "title": "Best Streak",
+            "default": 0
           }
         },
         "type": "object",
@@ -639,6 +1319,38 @@
           "user"
         ],
         "title": "Overview"
+      },
+      "Prefs": {
+        "properties": {
+          "bedtime": {
+            "type": "integer",
+            "title": "Bedtime",
+            "default": 1365
+          },
+          "wake": {
+            "type": "integer",
+            "title": "Wake",
+            "default": 420
+          },
+          "hours": {
+            "type": "number",
+            "title": "Hours",
+            "default": 8
+          },
+          "share_details": {
+            "type": "boolean",
+            "title": "Share Details",
+            "default": true
+          },
+          "show_on_board": {
+            "type": "boolean",
+            "title": "Show On Board",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "Prefs",
+        "description": "Per-user goals and privacy toggles. Times are minutes after midnight."
       },
       "ScoreBreakdown": {
         "properties": {
@@ -767,6 +1479,19 @@
         ],
         "title": "SleepNight"
       },
+      "SquadCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SquadCreate"
+      },
       "SquadEntry": {
         "properties": {
           "rank": {
@@ -794,6 +1519,37 @@
           "members"
         ],
         "title": "SquadEntry"
+      },
+      "SquadInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "code"
+        ],
+        "title": "SquadInfo"
+      },
+      "SquadJoin": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "SquadJoin"
       },
       "SquadLeaderboard": {
         "properties": {
