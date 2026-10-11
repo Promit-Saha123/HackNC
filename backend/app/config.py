@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     whoop_client_secret: str = ""
     cors_origins: str = "*"
     auth_secret: str = "dev-secret-change-me"  # set AUTH_SECRET in backend/.env for the demo
+    strict_privacy: bool = False  # True: overview/history are readable only by the signed-in user
 
 
 settings = Settings()

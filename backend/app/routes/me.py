@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import current_user_id
-from ..models import ManualNight, Prefs, SleepNight, SquadCreate, SquadInfo, SquadJoin
+from ..models import ManualNight, Prefs, SleepNight, SquadCreate, SquadInfo, SquadJoin, SyncStatus
 from ..store import store
 
 router = APIRouter(prefix="/me")
@@ -60,3 +60,14 @@ def join_squad(body: SquadJoin, uid: int = Depends(current_user_id)):
     if squad is None:
         raise HTTPException(404, "no squad with that code")
     return squad
+
+
+@router.post("/squad/leave", status_code=204)
+def leave_squad(uid: int = Depends(current_user_id)):
+    store.leave_squad(uid)
+
+
+@router.get("/sync", response_model=SyncStatus)
+def sync_status(uid: int = Depends(current_user_id)):
+    """Apple Health row on Profile: has the Shortcut synced, and when."""
+    return store.sync_status(uid)

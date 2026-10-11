@@ -62,6 +62,15 @@ def ingest_user_id(token: str) -> int | None:
     return int(uid) if uid.isdigit() and hmac.compare_digest(sig, _sign(f"ingest.{uid}")) else None
 
 
+def require_self(user_id: int, authorization: str = Header("")) -> int:
+    """Dependency for routes with a {user_id} path param that return one user's detailed sleep data.
+    Off by default: the app doesn't send tokens everywhere yet. STRICT_PRIVACY=true limits them to the signed-in user
+    (friends use /users/{id}/card, which shows score + streak only)."""
+    if settings.strict_privacy and user_id_from(authorization.removeprefix("Bearer ").strip()) != user_id:
+        raise HTTPException(403, "you can only read your own sleep data")
+    return user_id
+
+
 def current_user_id(authorization: str = Header("")) -> int:
     """FastAPI dependency: the user id behind a valid bearer token, else 401."""
     uid = user_id_from(authorization.removeprefix("Bearer ").strip())

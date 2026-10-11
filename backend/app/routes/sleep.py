@@ -1,10 +1,10 @@
 import re
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
-from ..auth import current_user_id, ingest_user_id
-from ..models import Overview, ShortcutResult, SleepNight, User
+from ..auth import current_user_id, ingest_user_id, require_self
+from ..models import HistoryNight, Overview, ShortcutResult, SleepNight, User
 from ..store import store
 
 router = APIRouter()
@@ -78,12 +78,21 @@ def users():
     return store.list_users()
 
 
-@router.get("/users/{user_id}/overview", response_model=Overview)
+@router.get("/users/{user_id}/overview", response_model=Overview, dependencies=[Depends(require_self)])
 def overview(user_id: int):
     result = store.overview(user_id)
     if result is None:
         raise HTTPException(404, "unknown user")
     return result
+
+
+@router.get("/users/{user_id}/history", response_model=list[HistoryNight], dependencies=[Depends(require_self)])
+def history(user_id: int, days: int = Query(60, ge=1, le=365)):
+    """The last `days` nights (oldest first) with times, stage minutes and score: powers the calendar and Trends."""
+    nights = store.history(user_id, days)
+    if nights is None:
+        raise HTTPException(404, "unknown user")
+    return nights
 
 
 @router.delete("/users/{user_id}/data", status_code=204)

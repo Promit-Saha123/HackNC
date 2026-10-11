@@ -8,7 +8,8 @@ from statistics import mean
 from .config import settings
 from .db import get_pool
 from .models import (
-    Leaderboard, LeaderboardEntry, NightScore, Overview, Prefs, ScoreBreakdown, SleepNight, SquadInfo, User,
+    HistoryNight, Leaderboard, LeaderboardEntry, NightScore, Overview, Prefs, ScoreBreakdown, SleepNight, SquadInfo,
+    SyncStatus, User,
 )
 from .scoring import badge_for, compute_scores
 
@@ -81,6 +82,7 @@ class Store:
         self.scores: dict[int, list] = {}
         self.hashes: dict[int, str] = {}
         self.prefs: dict[int, Prefs] = {}
+        self.synced: dict[int, datetime] = {}  # last Shortcut sync per user
         self.squads: dict[str, str] = dict(DEMO_SQUAD_CODES)  # name -> invite code
         for uid, (name, squad, bed_h, sleep_h, kind) in enumerate(PROFILES, start=1):
             self.users[uid] = User(id=uid, name=name, squad=squad, source="seed", is_demo=True)
@@ -95,7 +97,7 @@ class Store:
 
     def delete_user(self, uid: int) -> None:
         """Remove the user and all their rows."""
-        for table in (self.users, self.nights, self.scores, self.hashes, self.prefs):
+        for table in (self.users, self.nights, self.scores, self.hashes, self.prefs, self.synced):
             table.pop(uid, None)
 
     def login_info(self, name: str) -> tuple[User, str | None] | None:
@@ -110,7 +112,10 @@ class Store:
         return self.prefs.get(uid, Prefs())
 
     def set_prefs(self, uid: int, p: Prefs) -> None:
+        hours_changed = self.get_prefs(uid).hours != p.hours
         self.prefs[uid] = p
+        if hours_changed and uid in self.nights:  # the hours goal feeds the duration score
+            self.scores[uid] = compute_scores(self.nights[uid], p.hours)
 
     def get_squad(self, uid: int) -> SquadInfo | None:
         name = self.users[uid].squad
@@ -134,18 +139,40 @@ class Store:
         self.users[uid] = self.users[uid].model_copy(update={"squad": name})
         return SquadInfo(name=name, code=self.squads[name])
 
+    def leave_squad(self, uid: int) -> None:
+        self.users[uid] = self.users[uid].model_copy(update={"squad": None})
+
+    def squad_by_code(self, code: str) -> SquadInfo | None:
+        name = next((n for n, c in self.squads.items() if c == code.strip().upper()), None)
+        return SquadInfo(name=name, code=self.squads[name]) if name else None
+
     def recent_nights(self, uid: int, limit: int = 28) -> list[SleepNight]:
         """Last `limit` nights, oldest first (for the weekly AI insight)."""
         return self.nights.get(uid, [])[-limit:]
+
+    def history(self, uid: int, days: int) -> list[HistoryNight] | None:
+        """Last `days` nights with their scores, oldest first. None for an unknown user."""
+        if uid not in self.users:
+            return None
+        return [
+            HistoryNight(**n.model_dump(), score=s.score)
+            for n, s in zip(self.nights[uid][-days:], self.scores[uid][-days:])
+        ]
+
+    def sync_status(self, uid: int) -> SyncStatus:
+        at = self.synced.get(uid)
+        synced = sum(n.source == "shortcut" for n in self.nights.get(uid, []))
+        return SyncStatus(connected=at is not None, last_sync_at=at, nights_synced=synced)
 
     def add_nights(self, uid: int, new: list[SleepNight]) -> None:
         """Merge by wake date (new replaces old), then rescore the user's history."""
         by_day = {n.day: n for n in self.nights[uid]}
         by_day.update({n.day: n for n in new})
         self.nights[uid] = sorted(by_day.values(), key=lambda n: n.day)
-        self.scores[uid] = compute_scores(self.nights[uid])
+        self.scores[uid] = compute_scores(self.nights[uid], self.get_prefs(uid).hours)
         if any(n.source == "shortcut" for n in new):
             self.users[uid] = self.users[uid].model_copy(update={"is_demo": False, "source": "shortcut"})
+            self.synced[uid] = datetime.now()
 
     def overview(self, uid: int) -> Overview | None:
         user = self.users.get(uid)
@@ -258,11 +285,14 @@ class SqlStore:
 
     def set_prefs(self, uid: int, p: Prefs) -> None:
         with get_pool().connection() as c:
+            old = c.execute("SELECT goal_hours FROM users WHERE id = %s", (uid,)).fetchone()
             c.execute(
                 "UPDATE users SET goal_bedtime = %s, goal_wake = %s, goal_hours = %s, share_details = %s,"
                 " show_on_board = %s WHERE id = %s",
                 (p.bedtime, p.wake, p.hours, p.share_details, p.show_on_board, uid),
             )
+            if old and old["goal_hours"] != p.hours:  # the hours goal feeds the duration score
+                self._rescore(c, uid)
 
     def get_squad(self, uid: int) -> SquadInfo | None:
         with get_pool().connection() as c:
@@ -290,6 +320,15 @@ class SqlStore:
                 c.execute("UPDATE users SET squad = %s WHERE id = %s", (r["name"], uid))
         return SquadInfo(**r) if r else None
 
+    def leave_squad(self, uid: int) -> None:
+        with get_pool().connection() as c:
+            c.execute("UPDATE users SET squad = NULL WHERE id = %s", (uid,))
+
+    def squad_by_code(self, code: str) -> SquadInfo | None:
+        with get_pool().connection() as c:
+            r = c.execute("SELECT name, code FROM squads WHERE code = %s", (code.strip().upper(),)).fetchone()
+        return SquadInfo(**r) if r else None
+
     def recent_nights(self, uid: int, limit: int = 28) -> list[SleepNight]:
         """Last `limit` nights, oldest first (for the weekly AI insight)."""
         with get_pool().connection() as c:
@@ -298,6 +337,46 @@ class SqlStore:
                 (uid, limit),
             ).fetchall()
         return [_night(r) for r in rows[::-1]]
+
+    def history(self, uid: int, days: int) -> list[HistoryNight] | None:
+        """Last `days` nights with their scores, oldest first. None for an unknown user."""
+        if not self.has_user(uid):
+            return None
+        with get_pool().connection() as c:
+            rows = c.execute(
+                "SELECT s.time AS bedtime, s.end_time AS wake_time, s.duration_min, s.efficiency, s.deep_min,"
+                " s.rem_min, s.light_min, s.awake_min, s.source, d.score FROM sleep_sessions s"
+                " JOIN daily_scores d ON d.user_id = s.user_id AND d.time::date = s.end_time::date"
+                " WHERE s.user_id = %s ORDER BY s.end_time DESC LIMIT %s",
+                (uid, days),
+            ).fetchall()
+        return [HistoryNight(**_night(r).model_dump(), score=r["score"]) for r in rows[::-1]]
+
+    def sync_status(self, uid: int) -> SyncStatus:
+        with get_pool().connection() as c:
+            r = c.execute(
+                "SELECT last_sync_at, (SELECT count(*) FROM sleep_sessions WHERE user_id = %s AND source = 'shortcut')"
+                " AS n FROM users WHERE id = %s",
+                (uid, uid),
+            ).fetchone()
+        if r is None:
+            return SyncStatus(connected=False)
+        r = _naive(r)
+        return SyncStatus(connected=r["last_sync_at"] is not None, last_sync_at=r["last_sync_at"], nights_synced=r["n"])
+
+    def _rescore(self, c, uid: int) -> None:
+        """Rebuild the user's daily_scores from their nights and their hours goal (call inside a transaction)."""
+        hours = c.execute("SELECT goal_hours FROM users WHERE id = %s", (uid,)).fetchone()["goal_hours"]
+        nights = [_night(r) for r in c.execute(
+            f"SELECT {NIGHT_COLS} FROM sleep_sessions WHERE user_id = %s ORDER BY end_time", (uid,))]
+        c.execute("DELETE FROM daily_scores WHERE user_id = %s", (uid,))
+        for n, s in zip(nights, compute_scores(nights, hours)):
+            c.execute(
+                "INSERT INTO daily_scores (time, user_id, score, duration_pts, consistency_pts, quality_pts,"
+                " streak_pts, streak_days) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+                (datetime.combine(n.day, time(8)), uid, s.score, s.duration_pts, s.consistency_pts,
+                 s.quality_pts, s.streak_pts, s.streak_days),
+            )
 
     def add_nights(self, uid: int, new: list[SleepNight]) -> None:
         """Replace by wake date, then rescore the user's whole history (one transaction)."""
@@ -310,18 +389,12 @@ class SqlStore:
                     (n.bedtime, uid, n.wake_time, n.duration_min, n.efficiency, n.deep_min, n.rem_min,
                      n.light_min, n.awake_min, n.source),
                 )
-            nights = [_night(r) for r in c.execute(
-                f"SELECT {NIGHT_COLS} FROM sleep_sessions WHERE user_id = %s ORDER BY end_time", (uid,))]
-            c.execute("DELETE FROM daily_scores WHERE user_id = %s", (uid,))
-            for n, s in zip(nights, compute_scores(nights)):
-                c.execute(
-                    "INSERT INTO daily_scores (time, user_id, score, duration_pts, consistency_pts, quality_pts,"
-                    " streak_pts, streak_days) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
-                    (datetime.combine(n.day, time(8)), uid, s.score, s.duration_pts, s.consistency_pts,
-                     s.quality_pts, s.streak_pts, s.streak_days),
-                )
+            self._rescore(c, uid)
             if any(n.source == "shortcut" for n in new):
-                c.execute("UPDATE users SET is_demo = false, source = 'shortcut' WHERE id = %s", (uid,))
+                c.execute(
+                    "UPDATE users SET is_demo = false, source = 'shortcut', last_sync_at = %s WHERE id = %s",
+                    (datetime.now(), uid),
+                )
 
     def overview(self, uid: int) -> Overview | None:
         with get_pool().connection() as c:

@@ -106,6 +106,11 @@ class NightScore(BaseModel):
     duration_min: int | None = None  # minutes asleep
 
 
+class HistoryNight(SleepNight):
+    """One night in GET /users/{id}/history: the full night plus its score."""
+    score: float
+
+
 class Overview(BaseModel):
     user: User
     last_night: SleepNight | None = None
@@ -144,6 +149,27 @@ class SquadEntry(BaseModel):
 class SquadLeaderboard(BaseModel):
     period: Literal["week", "all"]
     entries: list[SquadEntry]
+
+
+class SquadMember(BaseModel):
+    """Score-level info only: members who hid themselves from the leaderboard are left out."""
+    user_id: int
+    name: str
+    streak_days: int = 0
+    badge: str | None = None
+
+
+class SquadDetail(BaseModel):
+    name: str
+    code: str
+    members: list[SquadMember]
+
+
+class SyncStatus(BaseModel):
+    """Apple Health sync state for the Profile screen (the iOS Shortcut is the only sync path)."""
+    connected: bool  # the Shortcut has synced at least once
+    last_sync_at: dt.datetime | None = None
+    nights_synced: int = 0
 
 
 class ShortcutResult(BaseModel):
