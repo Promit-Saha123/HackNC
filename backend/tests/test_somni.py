@@ -44,7 +44,7 @@ def test_reply_uses_gemini_draft_and_sends_data_and_history(monkeypatch):
 def test_off_topic_flag_passes_through(monkeypatch):
     monkeypatch.setattr(
         gemini, "structured",
-        lambda s, c_, schema: schema(reply="I can only help with your sleep and Sleep Squad.", suggestions=[], in_scope=False),
+        lambda s, c_, schema: schema(reply="I can only help with your sleep and Somnia.", suggestions=[], in_scope=False),
     )
     body = ask(1, "Write my essay on WW2").json()
     assert body["in_scope"] is False and body["suggestions"] == somni.DEFAULT_SUGGESTIONS

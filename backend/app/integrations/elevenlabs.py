@@ -1,4 +1,4 @@
-"""ElevenLabs: the voice and ears of Sleep Squad.
+"""ElevenLabs: the voice and ears of Somnia.
 
 Text-to-speech reads the morning briefing and Somni's spoken replies aloud. MP3s are generated on demand and
 cached on disk by a hash of voice + model + text, so each text costs one ElevenLabs call.

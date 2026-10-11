@@ -331,7 +331,7 @@ function mockSomni(userId: number, question: string) {
     };
   }
   if (!SLEEP.test(question) || !o) {
-    return { reply: 'I can only help with your sleep and your Sleep Squad data.', suggestions: SUGGESTIONS, in_scope: false };
+    return { reply: 'I can only help with your sleep and your Somnia data.', suggestions: SUGGESTIONS, in_scope: false };
   }
   const s = o.score;
   const hours = ((o.last_night?.duration_min ?? 0) / 60).toFixed(1);

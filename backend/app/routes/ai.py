@@ -52,7 +52,7 @@ def weekly_insight(user_id: int):
 
 @router.post("/ai/chat/{user_id}", response_model=ChatReply, dependencies=SELF_ONLY)
 def chat(user_id: int, body: ChatRequest):
-    """Somni chatbot: answers questions about the user's own Sleep Squad data only (see integrations/somni.py)."""
+    """Somni chatbot: answers questions about the user's own Somnia data only (see integrations/somni.py)."""
     if not body.messages or body.messages[-1].role != "user" or not body.messages[-1].text.strip():
         raise HTTPException(422, "send at least one message, ending with the user's question")
     key = f"somni:{user_id}"
