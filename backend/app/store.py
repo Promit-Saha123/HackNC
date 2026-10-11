@@ -83,7 +83,7 @@ class Store:
 
     def delete_user(self, uid: int) -> None:
         """Remove the user and all their rows."""
-        for table in (self.users, self.nights, self.scores):
+        for table in (self.users, self.nights, self.scores, self.hashes):
             table.pop(uid, None)
 
     def login_info(self, name: str) -> tuple[User, str | None] | None:
