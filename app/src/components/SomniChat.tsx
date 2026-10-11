@@ -15,7 +15,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -26,11 +25,10 @@ import { ApiError, api, authHeaders } from '@/api/client';
 import type { ChatMessage } from '@/api/types';
 import { colors } from '@/theme/colors';
 import { fontFamily, type as t } from '@/theme/fonts';
-import { radius, spacing } from '@/theme/spacing';
+import { spacing } from '@/theme/spacing';
 
 const SILENCE_DB = -50; // peak mic level below this = the phone recorded silence (iOS metering is ~-160..0 dB)
 
-const STARTERS = ['Why did my score change?', "How's my streak going?", 'How can I climb the leaderboard?'];
 
 type Turn = ChatMessage & { local?: boolean }; // local = greeting/errors shown in the UI but never sent to the API
 
@@ -60,9 +58,8 @@ type Props = { visible: boolean; onClose: () => void; userId: number; name?: str
  * Voice: tap the mic, speak, tap again. ElevenLabs transcribes the question and Somni's reply is spoken back.
  */
 export function SomniChat({ visible, onClose, userId, name }: Props) {
-  const greeting = `Hi${name ? ` ${name.split(' ')[0]}` : ''}! I'm Somni. Ask me anything about your sleep, scores, streaks or squad.`;
+  const greeting = `Hi${name ? ` ${name.split(' ')[0]}` : ''}! I'm Somni. Ask me anything about your sleep, like why your score changed or how to climb the leaderboard. Type, or tap the mic and talk.`;
   const [turns, setTurns] = useState<Turn[]>([{ role: 'somni', text: greeting, local: true }]);
-  const [suggestions, setSuggestions] = useState<string[]>(STARTERS);
   const [draft, setDraft] = useState('');
   const [thinking, setThinking] = useState(false);
   const list = useRef<FlatList<Turn>>(null);
@@ -98,7 +95,6 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
       const sent = history.filter((m) => !m.local).map(({ role, text: body }) => ({ role, text: body }));
       const r = await api.chat(userId, sent, { speak });
       setTurns((prev) => [...prev, { role: 'somni', text: r.reply }]);
-      setSuggestions(r.suggestions.length ? r.suggestions : STARTERS);
       if (speak && r.audio_url) {
         voice.replace({ uri: r.audio_url, headers: authHeaders() });
         voice.play();
@@ -200,20 +196,6 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
           }
         />
 
-        {!thinking && mic === 'idle' && suggestions.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.chips}>
-            {suggestions.map((s) => (
-              <Pressable key={s} onPress={() => send(s)} style={({ pressed }) => [styles.chip, pressed && styles.pressed]}>
-                <Text style={styles.chipText}>{s}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        )}
-
         <View style={styles.inputRow}>
           <Pressable
             accessibilityLabel={mic === 'recording' ? 'Stop and send voice question' : 'Ask by voice'}
@@ -312,16 +294,6 @@ const styles = StyleSheet.create({
   somniText: { fontFamily: fontFamily.regular, fontSize: 15, lineHeight: 21, color: colors.text },
   userText: { fontFamily: fontFamily.medium, fontSize: 15, lineHeight: 21, color: colors.onAccent },
   thinking: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  chips: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm, gap: spacing.sm },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.highlight,
-  },
-  chipText: { fontFamily: fontFamily.medium, fontSize: 13, color: colors.text },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
