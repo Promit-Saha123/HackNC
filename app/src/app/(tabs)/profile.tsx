@@ -13,7 +13,9 @@ import { SquadSheet } from '@/components/sheets/SquadSheet';
 import { TargetsSheet } from '@/components/sheets/TargetsSheet';
 import { useOverview } from '@/hooks/use-overview';
 import { usePrefs } from '@/state/prefs';
+import { useSky } from '@/state/sky';
 import { useUser } from '@/state/user';
+import { Stepper } from '@/components/Stepper';
 import { colors } from '@/theme/colors';
 import { fontFamily, type as t } from '@/theme/fonts';
 import { spacing } from '@/theme/spacing';
@@ -26,6 +28,7 @@ export default function ProfileScreen() {
   const { overview, error, refreshing, refresh } = useOverview();
   const { goals, squad } = usePrefs();
   const { signOut } = useUser();
+  const sky = useSky();
   const [sheet, setSheet] = useState<SheetKey | null>(null);
   const [info, setInfo] = useState<Info | null>(null);
   // TODO(P1): persist these on the backend; local only for now.
@@ -64,7 +67,7 @@ export default function ProfileScreen() {
               setInfo({
                 title: 'Demo profile',
                 body: [
-                  'This account and the friends on the leaderboard are synthetic demo profiles, so you can try Sleep Squad without real sleep data.',
+                  'This account and the friends on the leaderboard are synthetic demo profiles, so you can try Somni without real sleep data.',
                 ],
               })
             }>
@@ -165,6 +168,32 @@ export default function ProfileScreen() {
         </Card>
       </Section>
 
+      <Section title="Sky">
+        <Card padding={0}>
+          <Row
+            icon={<IconCircle name={sky.daylight > 0.5 ? 'sun.max.fill' : 'moon.stars.fill'} />}
+            title="Follow my clock"
+            detail={sky.preview == null ? 'The sky changes with the time of day' : 'Previewing a different time'}
+            right={<Toggle value={sky.preview == null} onChange={(on) => sky.setPreview(on ? null : Math.floor(sky.hour * 2) / 2)} />}
+          />
+          {sky.preview != null && (
+            <>
+              <Divider />
+              <View style={styles.stepper}>
+                <Stepper
+                  label="Preview time"
+                  value={sky.preview}
+                  step={0.5}
+                  wrap={24}
+                  format={(h) => clockFromMinutes(h * 60)}
+                  onChange={sky.setPreview}
+                />
+              </View>
+            </>
+          )}
+        </Card>
+      </Section>
+
       <Section title="Connections">
         <Card padding={0}>
           <Row
@@ -175,7 +204,7 @@ export default function ProfileScreen() {
                 title: 'Apple Health',
                 subtitle: 'Not connected',
                 body: [
-                  'Sleep Squad reads Sleep Analysis only: when you fell asleep, woke up, and your sleep stages. Never heart rate or other health data.',
+                  'Somni reads Sleep Analysis only: when you fell asleep, woke up, and your sleep stages. Never heart rate or other health data.',
                   'For now, use Log sleep, or the "SleepSquad Sync" Shortcut, to bring nights in.',
                 ],
                 action: {
@@ -213,7 +242,7 @@ export default function ProfileScreen() {
         />
       </Card>
 
-      <Text style={[t.caption, styles.note]}>Sleep Squad is not medical advice.</Text>
+      <Text style={[t.caption, styles.note]}>Somni is not medical advice.</Text>
 
       <TargetsSheet visible={sheet === 'targets'} onClose={close} />
       <SquadSheet visible={sheet === 'squad'} onClose={close} backendSquad={user?.squad} />
@@ -283,6 +312,7 @@ const styles = StyleSheet.create({
   rowText: { flex: 1, gap: 2 },
   rowTitle: { fontFamily: fontFamily.semibold, fontSize: 16, color: colors.text },
   status: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  stepper: { paddingHorizontal: spacing.md, paddingVertical: 4 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   delete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.md },
   deleteText: { fontFamily: fontFamily.semibold, fontSize: 16, color: colors.danger },

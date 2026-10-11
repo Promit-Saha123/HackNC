@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { api } from '@/api/client';
+import { Glass, HAS_GLASS } from '@/components/Glass';
 import { IconCircle } from '@/components/IconCircle';
 import { Sheet } from '@/components/Sheet';
 import { colors } from '@/theme/colors';
@@ -40,10 +41,8 @@ export function BriefingCard({ userId, refreshKey }: Props) {
 
   return (
     <>
-      <Pressable
-        disabled={loading}
-        onPress={() => setOpen(true)}
-        style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+      <Pressable disabled={loading} onPress={() => setOpen(true)} style={({ pressed }) => pressed && !HAS_GLASS && styles.pressed}>
+        <Glass interactive style={styles.card}>
         <IconCircle name="sparkles" size={38} />
         <View style={styles.body}>
           <Text style={styles.label}>Morning briefing</Text>
@@ -52,6 +51,7 @@ export function BriefingCard({ userId, refreshKey }: Props) {
           </Text>
         </View>
         {!loading && <SymbolView name="chevron.right" size={14} tintColor={colors.textSoft} />}
+        </Glass>
       </Pressable>
 
       <Sheet visible={open} onClose={() => setOpen(false)} title="Morning briefing" subtitle="Compared only with your own nights">
@@ -70,9 +70,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
   },
   pressed: { opacity: 0.8 },
   body: { flex: 1, gap: 2 },

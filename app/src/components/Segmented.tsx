@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
+import { Glass } from '@/components/Glass';
 import { colors } from '@/theme/colors';
 import { fontFamily } from '@/theme/fonts';
 
@@ -31,7 +32,8 @@ export function Segmented<K extends string>({ options, value, onChange }: Props<
   const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
 
   return (
-    <View style={styles.container} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      <Glass style={styles.container}>
       {segment > 0 && <Animated.View style={[styles.pill, { width: segment }, pill]} />}
       {options.map((o) => (
         <Pressable
@@ -46,6 +48,7 @@ export function Segmented<K extends string>({ options, value, onChange }: Props<
           </Text>
         </Pressable>
       ))}
+      </Glass>
     </View>
   );
 }
@@ -56,9 +59,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: INSET,
     borderRadius: HEIGHT / 2,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.switcherBg,
   },
   pill: {
     position: 'absolute',

@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { PrefsProvider } from '@/state/prefs';
+import { SkyProvider } from '@/state/sky';
 import { UserProvider } from '@/state/user';
 import { colors } from '@/theme/colors';
 import { fontAssets } from '@/theme/fonts';
@@ -28,6 +29,7 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={theme}>
+      <SkyProvider>
       <UserProvider>
         <PrefsProvider>
           <StatusBar style="light" />
@@ -37,6 +39,7 @@ export default function RootLayout() {
           </Stack>
         </PrefsProvider>
       </UserProvider>
+      </SkyProvider>
     </ThemeProvider>
   );
 }

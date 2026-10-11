@@ -49,10 +49,10 @@ export function dayEntries(overview: Overview | null, logs: ManualLog[]): DayEnt
 export type Stages = { deep: number; light: number; rem: number; awake: number };
 
 export const STAGE_META: { key: keyof Stages; label: string; color: string; about: string }[] = [
-  { key: 'deep', label: 'Deep', color: '#FFFFFF', about: 'Body recovery. Most of it happens early in the night.' },
-  { key: 'light', label: 'Light', color: '#8E8E93', about: 'The bulk of the night. Your body and mind settle.' },
-  { key: 'rem', label: 'REM', color: '#C7C7CC', about: 'Dreaming. Helps memory and mood, longer toward morning.' },
-  { key: 'awake', label: 'Awake', color: '#48484A', about: 'Short wake-ups. A few are normal.' },
+  { key: 'deep', label: 'Deep', color: '#9C8DFF', about: 'Body recovery. Most of it happens early in the night.' },
+  { key: 'light', label: 'Light', color: '#6FC8FF', about: 'The bulk of the night. Your body and mind settle.' },
+  { key: 'rem', label: 'REM', color: '#D9F5FF', about: 'Dreaming. Helps memory and mood, longer toward morning.' },
+  { key: 'awake', label: 'Awake', color: '#FFB3C8', about: 'Short wake-ups. A few are normal.' },
 ];
 
 /** Minutes per stage for a night. Uses demo proportions: there is no real stage tracking yet. */
