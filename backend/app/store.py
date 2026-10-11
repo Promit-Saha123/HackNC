@@ -80,6 +80,10 @@ class Store:
     def has_user(self, uid: int) -> bool:
         return uid in self.users
 
+    def recent_nights(self, uid: int, limit: int = 28) -> list[SleepNight]:
+        """Last `limit` nights, oldest first (for the weekly AI insight)."""
+        return self.nights.get(uid, [])[-limit:]
+
     def add_nights(self, uid: int, new: list[SleepNight]) -> None:
         """Merge by wake date (new replaces old), then rescore the user's history."""
         by_day = {n.day: n for n in self.nights[uid]}
@@ -162,6 +166,15 @@ class SqlStore:
     def has_user(self, uid: int) -> bool:
         with get_pool().connection() as c:
             return c.execute("SELECT 1 FROM users WHERE id = %s", (uid,)).fetchone() is not None
+
+    def recent_nights(self, uid: int, limit: int = 28) -> list[SleepNight]:
+        """Last `limit` nights, oldest first (for the weekly AI insight)."""
+        with get_pool().connection() as c:
+            rows = c.execute(
+                f"SELECT {NIGHT_COLS} FROM sleep_sessions WHERE user_id = %s ORDER BY end_time DESC LIMIT %s",
+                (uid, limit),
+            ).fetchall()
+        return [_night(r) for r in rows[::-1]]
 
     def add_nights(self, uid: int, new: list[SleepNight]) -> None:
         """Replace by wake date, then rescore the user's whole history (one transaction)."""

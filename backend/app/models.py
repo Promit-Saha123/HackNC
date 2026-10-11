@@ -92,3 +92,11 @@ class Briefing(BaseModel):
     user_id: int
     text: str
     audio_url: str | None = None
+
+
+class Insight(BaseModel):
+    """Weekly AI insight: one pattern from the user's own recent nights (P2, /ai/insight)."""
+    user_id: int
+    text: str
+    kind: str | None = None  # bedtime | weekend | trend | steady; None = not enough nights yet
+    nights_used: int = 0
