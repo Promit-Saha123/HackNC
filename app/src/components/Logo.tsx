@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { Glass } from '@/components/Glass';
 import { colors } from '@/theme/colors';
 
-/** Somni mark: moon with small stars in a glowing glass circle. */
+/** Somnia mark: moon with small stars in a glowing glass circle. */
 export function Logo({ size = 88 }: { size?: number }) {
   return (
     <View style={[styles.glow, { borderRadius: size / 2 }]}>

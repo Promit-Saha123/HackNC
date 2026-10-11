@@ -113,7 +113,7 @@ export function NightSheet({ visible, onClose, overview, stages, goals }: Props)
           </View>
         )}
 
-        <Text style={[t.caption, styles.note]}>Sleep stages are demo data for now. Somni is not medical advice.</Text>
+        <Text style={[t.caption, styles.note]}>Sleep stages are demo data for now. Somnia is not medical advice.</Text>
       </View>
     </Sheet>
   );

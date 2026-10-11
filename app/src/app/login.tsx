@@ -75,7 +75,7 @@ export default function LoginScreen() {
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <View style={styles.hero}>
               <Logo />
-              <Text style={styles.brand}>Somni</Text>
+              <Text style={styles.brand}>Somnia</Text>
               <Text style={[t.subtitle, styles.center, styles.readable]}>
                 {mode === 'login' ? 'Make sleep the thing your friends compete on.' : 'Create your account'}
               </Text>
@@ -285,7 +285,7 @@ function SignupForm() {
       {errors.form && <Text style={styles.error}>{errors.form}</Text>}
       <GradientButton label={busy ? 'Creating account...' : 'Create account'} onPress={submit} disabled={busy} />
       <Text style={[t.caption, styles.center, styles.readable]}>
-        Somni reads sleep times and stages only. Friends see your score and streak, nothing else. Not medical advice.
+        Somnia reads sleep times and stages only. Friends see your score and streak, nothing else. Not medical advice.
       </Text>
     </View>
   );
@@ -296,7 +296,7 @@ function ForgotSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
     <Sheet visible={visible} onClose={onClose} title="Forgot password">
       <View style={styles.form}>
         <Text style={t.body}>
-          Somni doesn&apos;t store your email, so there&apos;s no reset link yet. If you&apos;re still signed in on another phone,
+          Somnia doesn&apos;t store your email, so there&apos;s no reset link yet. If you&apos;re still signed in on another phone,
           change it in Profile. Demo profiles use the password {DEMO_PASSWORD}.
         </Text>
         <GradientButton label="Back to log in" onPress={onClose} />

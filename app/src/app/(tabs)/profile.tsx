@@ -76,7 +76,7 @@ export default function ProfileScreen() {
     isDemo
       ? Alert.alert(
           'Demo profile',
-          "Demo profiles are shared by everyone trying Somni, so they can't be deleted. Create your own account to try it.",
+          "Demo profiles are shared by everyone trying Somnia, so they can't be deleted. Create your own account to try it.",
         )
       : Alert.alert('Delete my data?', 'This removes all of your sleep nights and scores. It cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
@@ -109,7 +109,7 @@ export default function ProfileScreen() {
               setInfo({
                 title: 'Demo profile',
                 body: [
-                  'This account and the friends on the leaderboard are synthetic demo profiles, so you can try Somni without real sleep data.',
+                  'This account and the friends on the leaderboard are synthetic demo profiles, so you can try Somnia without real sleep data.',
                 ],
               })
             }>
@@ -220,7 +220,7 @@ export default function ProfileScreen() {
                 title: 'Apple Health',
                 subtitle: syncLabel(sync),
                 body: [
-                  'Somni reads Sleep Analysis only: when you fell asleep, woke up, and your sleep stages. Never heart rate or other health data.',
+                  'Somnia reads Sleep Analysis only: when you fell asleep, woke up, and your sleep stages. Never heart rate or other health data.',
                   sync?.connected
                     ? `The "SleepSquad Sync" Shortcut has brought in ${sync.nights_synced ?? 0} nights. Run it again to update.`
                     : 'Run the "SleepSquad Sync" Shortcut to bring nights in, or use Log sleep.',
@@ -277,7 +277,7 @@ export default function ProfileScreen() {
         />
       </Card>
 
-      <Text style={[t.caption, styles.note]}>Somni is not medical advice.</Text>
+      <Text style={[t.caption, styles.note]}>Somnia is not medical advice.</Text>
 
       <TargetsSheet visible={sheet === 'targets'} onClose={close} />
       <SquadSheet visible={sheet === 'squad'} onClose={close} />

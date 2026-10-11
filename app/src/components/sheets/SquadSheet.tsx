@@ -90,7 +90,7 @@ function SquadForm() {
             <Text style={[t.body, styles.flex]}>Invite code: {squad.code}</Text>
             <Text
               style={styles.share}
-              onPress={() => Share.share({ message: `Join my Somni squad "${squad.name}" with code ${squad.code}` })}>
+              onPress={() => Share.share({ message: `Join my Somnia squad "${squad.name}" with code ${squad.code}` })}>
               Share
             </Text>
           </View>
