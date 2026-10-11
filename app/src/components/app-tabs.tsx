@@ -1,10 +1,8 @@
-import * as Haptics from 'expo-haptics';
-import { Tabs } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
-import { StyleSheet } from 'react-native';
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import type { SFSymbol } from 'expo-symbols';
 
 import { colors } from '@/theme/colors';
-import { type as t } from '@/theme/fonts';
+import { fontFamily } from '@/theme/fonts';
 
 const TABS: { name: string; title: string; icon: SFSymbol }[] = [
   { name: 'index', title: 'Home', icon: 'moon.fill' },
@@ -14,37 +12,23 @@ const TABS: { name: string; title: string; icon: SFSymbol }[] = [
   { name: 'profile', title: 'Profile', icon: 'person.fill' },
 ];
 
+/** Native iOS tab bar: Liquid Glass on iOS 26+, standard bar on older versions. */
 export default function AppTabs() {
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        sceneStyle: { backgroundColor: colors.bg },
-        tabBarActiveTintColor: colors.tabActive,
-        tabBarInactiveTintColor: colors.tabInactive,
-        tabBarLabelStyle: t.tabLabel,
-        tabBarStyle: styles.bar,
+    <NativeTabs
+      tintColor={colors.tabActive}
+      iconColor={{ default: colors.tabInactive, selected: colors.tabActive }}
+      labelStyle={{
+        default: { color: colors.tabInactive, fontFamily: fontFamily.medium, fontSize: 11 },
+        selected: { color: colors.tabActive, fontFamily: fontFamily.semibold, fontSize: 11 },
       }}
-      screenListeners={{ tabPress: () => Haptics.selectionAsync() }}>
+      minimizeBehavior="onScrollDown">
       {TABS.map((tab) => (
-        <Tabs.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            title: tab.title,
-            tabBarIcon: ({ color }) => <SymbolView name={tab.icon} size={24} tintColor={color} />,
-          }}
-        />
+        <NativeTabs.Trigger key={tab.name} name={tab.name}>
+          <NativeTabs.Trigger.Label>{tab.title}</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon sf={tab.icon} />
+        </NativeTabs.Trigger>
       ))}
-    </Tabs>
+    </NativeTabs>
   );
 }
-
-const styles = StyleSheet.create({
-  bar: {
-    backgroundColor: colors.tabBar,
-    borderTopWidth: 1,
-    borderTopColor: colors.divider,
-    elevation: 0,
-  },
-});

@@ -1,36 +1,31 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { Glass, HAS_GLASS } from '@/components/Glass';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 
 type Props = {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
-  /** Tinted fill + brighter border, used for the "You" row. */
+  /** Brighter edge, used for the "You" row. */
   highlight?: boolean;
   /** Pass 0 for cards that hold full-bleed rows. */
   padding?: number;
   onPress?: () => void;
 };
 
-/** Navy card with a faint top-to-bottom sheen and a thin blue border. No blur: the background is already dark. */
+/** Liquid Glass card (dark card fallback before iOS 26). */
 export function Card({ children, style, highlight, padding = spacing.md, onPress }: Props) {
-  const content = (
-    <>
-      <LinearGradient
-        colors={highlight ? [colors.highlight, colors.highlight] : [colors.cardSheen, colors.card]}
-        style={StyleSheet.absoluteFill}
-      />
+  const body = (
+    <Glass interactive={!!onPress} style={[styles.card, highlight && styles.highlight, !onPress && style]}>
       <View style={{ padding }}>{children}</View>
-    </>
+    </Glass>
   );
-  const base = [styles.card, highlight && styles.highlight, style];
-  if (!onPress) return <View style={base}>{content}</View>;
+  if (!onPress) return body;
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [base, pressed && styles.pressed]}>
-      {content}
+    <Pressable onPress={onPress} style={({ pressed }) => [style, pressed && !HAS_GLASS && styles.pressed]}>
+      {body}
     </Pressable>
   );
 }
@@ -41,14 +36,8 @@ export function Divider() {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    overflow: 'hidden',
-  },
-  highlight: { borderColor: colors.accent },
+  card: { borderRadius: radius.card },
+  highlight: { borderColor: colors.accent, borderWidth: 1 },
   pressed: { opacity: 0.8 },
-  divider: { height: 1, backgroundColor: colors.divider },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.12)' },
 });
