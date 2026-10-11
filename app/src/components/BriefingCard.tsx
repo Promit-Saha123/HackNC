@@ -3,7 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { api } from '@/api/client';
+import { api, authHeaders } from '@/api/client';
 import { IconCircle } from '@/components/IconCircle';
 import { Sheet } from '@/components/Sheet';
 import { colors } from '@/theme/colors';
@@ -72,7 +72,8 @@ export function BriefingCard({ userId, refreshKey }: Props) {
 function ListenButton({ url }: { url: string }) {
   const [source, setSource] = useState<string | null>(null); // set on first tap
   const autoPlayed = useRef(false);
-  const player = useAudioPlayer(source);
+  // The audio endpoint is private to the signed-in user (STRICT_PRIVACY), so send the token with it.
+  const player = useAudioPlayer(source ? { uri: source, headers: authHeaders() } : null);
   const status = useAudioPlayerStatus(player);
 
   useEffect(() => {

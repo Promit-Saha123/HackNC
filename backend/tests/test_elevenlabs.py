@@ -75,3 +75,16 @@ def test_paid_only_voice_falls_back_but_other_errors_raise(monkeypatch):
     assert c.get("/ai/briefing/1/audio").content == b"ok"
     tts.convert = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("401 invalid_api_key"))
     assert c.get("/ai/briefing/2/audio").status_code == 503  # not a voice problem: no silent fallback
+
+
+def test_strict_privacy_keeps_ai_endpoints_private(monkeypatch):
+    from app.auth import make_token
+
+    use_fake_client(monkeypatch)
+    monkeypatch.setattr(settings, "strict_privacy", True)
+    mine, other = {"Authorization": f"Bearer {make_token(1)}"}, "/ai/briefing/2"
+    for path in (other, f"{other}/audio", "/ai/insight/2"):
+        assert c.get(path).status_code == 403  # no token
+        assert c.get(path, headers=mine).status_code == 403  # someone else's
+    for path in ("/ai/briefing/1", "/ai/briefing/1/audio", "/ai/insight/1"):
+        assert c.get(path, headers=mine).status_code == 200  # your own

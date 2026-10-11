@@ -1,19 +1,23 @@
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
+from ..auth import require_self
 from ..integrations import elevenlabs, gemini, insight
 from ..models import Briefing, Insight
 from ..store import store
 
 router = APIRouter()
+# Briefings and insights describe one user's nights in detail (hours, bedtimes), so they follow the same
+# STRICT_PRIVACY rule as /users/{id}/overview and /history: only the signed-in user can read their own.
+SELF_ONLY = [Depends(require_self)]
 log = logging.getLogger(__name__)
 AUDIO_DIR = elevenlabs.AUDIO_DIR
 
 
-@router.get("/ai/briefing/{user_id}", response_model=Briefing)
+@router.get("/ai/briefing/{user_id}", response_model=Briefing, dependencies=SELF_ONLY)
 def briefing(user_id: int):
     overview = store.overview(user_id)
     if overview is None:
@@ -23,7 +27,7 @@ def briefing(user_id: int):
     return Briefing(user_id=user_id, text=gemini.briefing_text(overview), audio_url=audio_url)
 
 
-@router.get("/ai/briefing/{user_id}/audio")
+@router.get("/ai/briefing/{user_id}/audio", dependencies=SELF_ONLY)
 def briefing_audio(user_id: int):
     """The briefing read aloud by ElevenLabs (MP3, cached per briefing text)."""
     overview = store.overview(user_id)
@@ -37,7 +41,7 @@ def briefing_audio(user_id: int):
     return FileResponse(path, media_type="audio/mpeg")
 
 
-@router.get("/ai/insight/{user_id}", response_model=Insight)
+@router.get("/ai/insight/{user_id}", response_model=Insight, dependencies=SELF_ONLY)
 def weekly_insight(user_id: int):
     """Strongest pattern in the user's last 28 nights, phrased by Gemini (numbers computed in code)."""
     overview = store.overview(user_id)
