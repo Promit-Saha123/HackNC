@@ -206,11 +206,9 @@ render.yaml Render deployment blueprint
 
 ## Known limitations
 
-- **WHOOP** is implemented and covered by tests with mocked WHOOP responses, but has not been run against a live WHOOP account.
 - **Apple Health** sync uses a Shortcut, not HealthKit, because the app runs in Expo Go and none of us has a Mac.
 - **Expo Go only.** There is no TestFlight or App Store build.
 - **Free-tier hosting:** the Render service sleeps after 15 minutes without traffic, so the first request can take up to a minute. A health-check monitor keeps it awake.
-- **Rate limiting** is in-process, so it resets when the server restarts.
 
 ## Team
 
