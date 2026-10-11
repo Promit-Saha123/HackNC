@@ -12,6 +12,8 @@ v1 in progress. Last tag: v0 (scaffold).
 
 - 2026-10-10 Promit (branch `backend`, not yet merged): Tiger Cloud live. Schema applied, seeded (8 users, 480 sessions, 480 scores; both hypertables), `store.py` now has `SqlStore` selected when `DATABASE_URL` is set (else in-memory `Store`, so a fresh clone still runs). Parity with the in-memory store checked; 12 tests pass; shortcut write path tested. Response shapes unchanged.
 - 2026-10-10 Promit (PR #6, merged): `Insight` model in `models.py` and `recent_nights(uid, limit=28)` on `Store`/`SqlStore` for P2's weekly insight. SQL version untested.
+- 2026-10-10 Promit (PRs #8, #10, #11 merged): `best_streak`, `prev_rank`, per-night bed/wake in history; `DELETE /users/{id}/data` (own token only); login `POST /auth/login` + `GET /auth/me` (scrypt hashes, signed 30-day bearer tokens; demo profiles share password `sleepsquad`; real users: `python scripts/set_password.py <name> <pw>`). Set `AUTH_SECRET` in `backend/.env`.
+- 2026-10-10 Promit (branches `p1/me-endpoints`, `p1/ingest-token`, stacked, PRs pending): `/me/prefs` (GET/PUT goals + privacy toggles; hidden users leave all leaderboards), `POST /me/sleep` (manual log; send LOCAL times with no UTC offset), `/me/squad` (GET, POST create, POST join; codes WOLF23, OWLS42, RATS17), `POST /ingest/token` + `X-Ingest-Token` on `/sleep/shortcut` (real users need it; demo profiles may still send `X-User-Id`). DB migrations `db/003_auth.sql`, `db/004_profile.sql` already applied to Tiger Cloud.
 
 ## In progress
 - P1 Promit, branch `backend`: next is the iOS Shortcut + cloudflared tunnel test.
@@ -30,6 +32,7 @@ v1 in progress. Last tag: v0 (scaffold).
 ## Blockers / decisions needed
 - Enable Gemini billing before the demo (free tier ran out on gemini-3.8-flash; fallback models + template exist).
 - P2: rebase `p2/weekly-insight` on main, then regenerate `openapi.json` / `schema.ts` (Insight is now in `models.py`).
+- Shortcut is not built yet (P1, phone needed); its header is now `X-Ingest-Token`, see `shortcut/README.md`.
 - Teammates need collaborator access to the GitHub repo (Promit adds them).
 - P2 / P3 names are placeholders in the docs; the team knows who they are.
 

@@ -36,7 +36,7 @@ def test_leaderboard_sorted_and_squad_filter():
 def test_ai_stubs():
     assert "not medical advice" in c.get("/ai/briefing/1").json()["text"]
     assert c.get("/ai/audio/missing.mp3").status_code == 404
-    assert c.post("/ingest/1/token").status_code == 501
+    assert c.post("/ingest/token").status_code == 401  # needs login
 
 def test_streak_extras_and_prev_rank():
     o = c.get("/users/1/overview").json()

@@ -26,6 +26,56 @@ class LoginResponse(BaseModel):
     token: str
 
 
+class Prefs(BaseModel):
+    """Per-user goals and privacy toggles. Times are minutes after midnight."""
+    bedtime: int = 22 * 60 + 45
+    wake: int = 7 * 60
+    hours: float = 8
+    share_details: bool = True  # bedtime + hours on the friend card (score + streak are always visible)
+    show_on_board: bool = True  # False hides the user from every leaderboard
+
+
+class ManualNight(BaseModel):
+    """A night typed in by hand. Send device-local wall-clock ISO times WITHOUT a UTC offset."""
+    bed: dt.datetime
+    wake: dt.datetime
+
+
+class SquadInfo(BaseModel):
+    name: str
+    code: str  # invite code
+
+
+class SquadCreate(BaseModel):
+    name: str
+
+
+class SquadJoin(BaseModel):
+    code: str
+
+
+class FriendDetails(BaseModel):
+    avg_bedtime: int  # minutes after midnight (local), last 7 nights
+    avg_hours: float
+
+
+class FriendCard(BaseModel):
+    """What a friend sees: score + streak always; details only if the user opted in (Prefs.share_details)."""
+    user_id: int
+    name: str
+    squad: str | None = None
+    score: float | None = None  # last night
+    streak_days: int = 0
+    best_streak: int = 0
+    badge: str | None = None
+    details: FriendDetails | None = None
+
+
+class IngestToken(BaseModel):
+    user_id: int
+    token: str
+
+
 class SleepNight(BaseModel):
     day: dt.date  # wake-up date
     bedtime: dt.datetime
