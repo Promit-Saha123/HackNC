@@ -5,6 +5,7 @@ Gemini compares the user only to their own baseline and makes no medical claims.
 Any failure (no key, network, bad JSON) falls back to a plain template, so the endpoint never breaks."""
 import datetime as dt
 import logging
+from typing import TypeVar
 
 from pydantic import BaseModel
 
@@ -13,8 +14,10 @@ from ..models import Overview
 from ..scoring import BADGES
 
 log = logging.getLogger(__name__)
+T = TypeVar("T", bound=BaseModel)
 
-MODELS = ("gemini-3.8-flash", "gemini-3.5-flash")  # second is a retry when the first is slow or overloaded
+# Tried in order. Each model has its own free-tier quota (~20 requests/day), so the later ones are spares.
+MODELS = ("gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.7-flash")
 TIMEOUT_MS = 10_000  # per attempt (API minimum); Gemini sometimes stalls ~20 s before a 504
 NOTE = "(Just a friendly sleep summary, not medical advice.)"
 
@@ -39,6 +42,7 @@ class BriefingDraft(BaseModel):
 
 
 _client = None
+_exhausted: set[str] = set()  # models that hit their daily quota; skipped until restart
 _cache: dict[tuple, str] = {}  # (user_id, day, score, streak) -> text, so it's one Gemini call per night
 
 
@@ -68,8 +72,9 @@ def _facts(o: Overview) -> str:
     return "\n".join(lines)
 
 
-def _ask_gemini(facts: str) -> BriefingDraft:
-    """Structured-output call, retried once on the backup model. Raises if both fail."""
+def structured(system: str, contents: str, schema: type[T]) -> T:
+    """Shared structured-output call (briefing + weekly insight), retried once on the backup model.
+    Raises if there is no key or both models fail; callers fall back to a template."""
     global _client
     if not settings.gemini_api_key:
         raise RuntimeError("GEMINI_API_KEY is not set")
@@ -79,22 +84,29 @@ def _ask_gemini(facts: str) -> BriefingDraft:
     if _client is None:
         _client = genai.Client(api_key=settings.gemini_api_key, http_options=types.HttpOptions(timeout=TIMEOUT_MS))
     config = types.GenerateContentConfig(
-        system_instruction=SYSTEM,
+        system_instruction=system,
         response_mime_type="application/json",
-        response_schema=BriefingDraft,
+        response_schema=schema,
         temperature=0.8,
         thinking_config=types.ThinkingConfig(thinking_level="LOW"),  # ~2 s instead of ~7 s; MINIMAL unsupported
     )
-    for i, model in enumerate(MODELS):
+    models = [m for m in MODELS if m not in _exhausted] or list(MODELS)
+    for i, model in enumerate(models):
         try:
-            resp = _client.models.generate_content(model=model, contents=facts, config=config)
-            if isinstance(resp.parsed, BriefingDraft):
+            resp = _client.models.generate_content(model=model, contents=contents, config=config)
+            if isinstance(resp.parsed, schema):
                 return resp.parsed
-            return BriefingDraft.model_validate_json(resp.text or "")
+            return schema.model_validate_json(resp.text or "")
         except Exception as e:
-            if i == len(MODELS) - 1:
+            if "RESOURCE_EXHAUSTED" in str(e) and "PerDay" in str(e):
+                _exhausted.add(model)
+            if i == len(models) - 1:
                 raise
-            log.warning("Gemini %s failed, retrying with %s: %s", model, MODELS[i + 1], e)
+            log.warning("Gemini %s failed, trying %s: %s", model, models[i + 1], str(e)[:120])
+
+
+def _ask_gemini(facts: str) -> BriefingDraft:
+    return structured(SYSTEM, facts, BriefingDraft)
 
 
 def _sentence(s: str) -> str:

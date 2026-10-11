@@ -16,6 +16,7 @@ const httpClient: Api = {
   leaderboard: (period, squad) =>
     get(`/leaderboard?period=${period}${squad ? `&squad=${encodeURIComponent(squad)}` : ''}`),
   briefing: (userId) => get(`/ai/briefing/${userId}`),
+  insight: (userId) => get(`/ai/insight/${userId}`),
 };
 
 /** Screens call `api.*`; flip EXPO_PUBLIC_USE_MOCKS to switch between fixtures and the backend. */
