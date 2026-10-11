@@ -1,7 +1,7 @@
 import { ApiError } from './errors';
 import { histories, leaderboard, overviews, rescore, users } from './fixtures/data';
 import { localIso } from './time';
-import type { Api, Insight, LeaderboardEntry, Prefs, SleepNight, SquadEntry, User } from './types';
+import type { Api, Insight, LeaderboardEntry, Prefs, SleepNight, SquadEntry, SquadInfo, User } from './types';
 
 const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 const round1 = (x: number) => Math.round(x * 10) / 10;
@@ -72,6 +72,24 @@ function signInAs(u: User) {
 
 const asLocal = (t: Date | string) => (typeof t === 'string' ? t : localIso(t));
 
+// Squads: name -> invite code (same demo codes as the backend's DEMO_SQUAD_CODES).
+const squadCodes: Record<string, string> = { Wolfpack: 'WOLF23', 'Night Owls': 'OWLS42', 'Library Rats': 'RATS17' };
+const squadInfo = (name: string): SquadInfo => ({ name, code: squadCodes[name] });
+const findSquadByCode = (code: string) => Object.keys(squadCodes).find((n) => squadCodes[n] === code.trim().toUpperCase());
+/** 4 letters from the name + 2 digits, e.g. 'Study Buddies' -> STUD42 (same as the backend). */
+function newCode(name: string) {
+  const letters = name.toUpperCase().replace(/[^A-Z]/g, '').padEnd(4, 'X').slice(0, 4);
+  let code: string;
+  do {
+    code = letters + String(10 + Math.floor(Math.random() * 90));
+  } while (Object.values(squadCodes).includes(code));
+  return code;
+}
+const prefsOf = (uid: number) => prefsByUser[uid] ?? DEFAULT_PREFS;
+
+// Sync: Maya (id 1) shows a connected Shortcut so both Profile states can be designed against mocks.
+const syncedAt: Record<number, string> = { 1: `${localIso(new Date()).slice(0, 10)}T07:32:00` };
+
 export const mockClient: Api = {
   users: async () => users,
   overview: async (userId) => overviews[userId] ?? overviews[1],
@@ -114,7 +132,7 @@ export const mockClient: Api = {
     if (users.some((x) => x.name.toLowerCase() === name.toLowerCase())) {
       throw new ApiError(409, 'An account with that username already exists. Log in instead.');
     }
-    const u: User = { id: users.length + 1, name, squad: null, source: null, is_demo: false };
+    const u: User = { id: Math.max(0, ...users.map((x) => x.id)) + 1, name, squad: null, source: null, is_demo: false };
     users.push(u);
     passwords[u.id] = password;
     rescore(u.id, []);
@@ -200,5 +218,91 @@ export const mockClient: Api = {
       .map(({ score, ...n }) => n);
     rescore(u.id, [...others, night].sort((a, b) => a.day.localeCompare(b.day)));
     return night;
+  },
+
+  mySquad: async () => {
+    const u = currentUser();
+    return u.squad && squadCodes[u.squad] ? squadInfo(u.squad) : null;
+  },
+  createSquad: async (rawName) => {
+    const u = currentUser();
+    const name = rawName.trim();
+    if (name.length < 2 || name.length > 30) throw new ApiError(422, 'squad name must be 2-30 characters');
+    if (Object.keys(squadCodes).some((n) => n.toLowerCase() === name.toLowerCase())) {
+      throw new ApiError(409, 'that squad name is taken');
+    }
+    squadCodes[name] = newCode(name);
+    u.squad = name;
+    return squadInfo(name);
+  },
+  joinSquad: async (code) => {
+    const u = currentUser();
+    const name = findSquadByCode(code);
+    if (!name) throw new ApiError(404, 'no squad with that code');
+    u.squad = name;
+    return squadInfo(name);
+  },
+  leaveSquad: async () => {
+    currentUser().squad = null;
+  },
+  squad: async (code) => {
+    const name = findSquadByCode(code);
+    if (!name) throw new ApiError(404, 'no squad with that code');
+    const members = users
+      .filter((u) => u.squad?.toLowerCase() === name.toLowerCase() && prefsOf(u.id).show_on_board)
+      .map((u) => ({ user_id: u.id, name: u.name, streak_days: overviews[u.id]?.streak_days ?? 0, badge: overviews[u.id]?.badge ?? null }));
+    return { ...squadInfo(name), members };
+  },
+
+  friendCard: async (userId) => {
+    const me = currentUser();
+    const u = users.find((x) => x.id === userId);
+    const o = overviews[userId];
+    if (!u || !o || (!prefsOf(userId).show_on_board && me.id !== userId)) throw new ApiError(404, 'unknown user');
+    const week = prefsOf(userId).share_details ? (histories[userId] ?? []).slice(-7) : [];
+    // average bedtime counted from 18:00 so 23:30 and 00:30 average sensibly, then back to minutes after midnight
+    const from18 = (iso: string) => {
+      const d = new Date(iso);
+      return (d.getHours() * 60 + d.getMinutes() - 18 * 60 + 1440) % 1440;
+    };
+    return {
+      user_id: u.id,
+      name: u.name,
+      squad: u.squad,
+      score: o.score?.score ?? null,
+      streak_days: o.streak_days,
+      best_streak: o.best_streak,
+      badge: o.badge,
+      avatar: profileExtras[u.id]?.avatar ?? null,
+      bio: profileExtras[u.id]?.bio ?? null,
+      details: week.length
+        ? {
+            avg_bedtime: Math.round((avg(week.map((n) => from18(n.bedtime))) + 18 * 60) % 1440),
+            avg_hours: round1(avg(week.map((n) => n.duration_min)) / 60),
+          }
+        : null,
+    };
+  },
+  syncStatus: async () => {
+    const u = currentUser();
+    const at = syncedAt[u.id] ?? null;
+    return { connected: at !== null, last_sync_at: at, nights_synced: at ? (histories[u.id]?.length ?? 0) : 0 };
+  },
+  ingestToken: async () => {
+    const u = currentUser();
+    return { user_id: u.id, token: `mock-ingest-${u.id}` };
+  },
+  deleteMyData: async () => {
+    const u = currentUser();
+    if (u.is_demo) throw new ApiError(403, "demo profiles can't be deleted");
+    // Like the backend: the whole account and its rows go, then the session ends.
+    users.splice(users.indexOf(u), 1);
+    delete histories[u.id];
+    delete overviews[u.id];
+    delete passwords[u.id];
+    delete prefsByUser[u.id];
+    delete profileExtras[u.id];
+    delete syncedAt[u.id];
+    signedIn = null;
   },
 };
