@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ActionBar } from '@/components/ActionBar';
 import { Avatar } from '@/components/Avatar';
+import { BriefingCard } from '@/components/BriefingCard';
 import { Card, Divider } from '@/components/Card';
 import { IconCircle } from '@/components/IconCircle';
 import { Screen } from '@/components/Screen';
@@ -29,7 +30,7 @@ const RING_MIN = 130;
 const RING_MAX = 290;
 
 export default function HomeScreen() {
-  const { overview, error } = useOverview();
+  const { overview, error, tick, userId } = useOverview();
   const { goals, logs } = usePrefs();
   const [sheet, setSheet] = useState<SheetKey | null>(null);
   const [info, setInfo] = useState<Info | null>(null);
@@ -126,6 +127,8 @@ export default function HomeScreen() {
           </Pressable>
         </View>
       </Card>
+
+      <BriefingCard userId={userId} refreshKey={tick} />
 
       <ActionBar
         actions={[

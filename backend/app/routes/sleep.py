@@ -88,7 +88,7 @@ def overview(user_id: int):
 @router.post("/sleep/shortcut", response_model=ShortcutResult)
 async def shortcut(request: Request, x_user_id: int = Header(...)):
     """Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line."""
-    if x_user_id not in store.users:
+    if not store.has_user(x_user_id):
         raise HTTPException(404, "unknown user")
     samples, skipped = parse_samples((await request.body()).decode("utf-8", errors="replace"))
     nights = samples_to_nights(samples)

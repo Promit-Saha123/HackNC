@@ -46,5 +46,6 @@ export function useOverview() {
     setTick((n) => n + 1);
   }, []);
 
-  return { overview, error, setError, refreshing, refresh };
+  /** `tick` bumps on every refetch, so dependent cards (briefing) can refresh too. */
+  return { overview, error, setError, refreshing, refresh, tick, userId };
 }
