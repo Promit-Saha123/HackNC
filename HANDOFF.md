@@ -19,15 +19,17 @@ v1 in progress. Last tag: v0 (scaffold).
 - P1 Promit, branch `backend`: next is the iOS Shortcut + cloudflared tunnel test.
 - P3 Pranav: PR #5 (`p3/design-system`), main merged in; needs a phone check, then merge.
 - P2 Sharvil (`p2/gemini-briefing`, merged in #2): Gemini briefing in `backend/app/integrations/gemini.py` (gemini-3.8-flash, structured JSON, own-baseline only, retry on gemini-3.5-flash, template fallback, cached per night) + tests (`tests/test_gemini.py`, `tests/conftest.py` blocks live Gemini in tests). App: `src/components/BriefingCard.tsx` on Home (`src/app/index.tsx`, P3 sign-off needed), mock briefing in `src/api/mockClient.ts`.
-- P2 Sharvil (`p2/weekly-insight`, PR open): `GET /ai/insight/{user_id}` -> `Insight`; `integrations/insight.py` finds the strongest pattern in the last 28 nights in code (bedtime-before-midnight, weekend drift, week trend, else steady), Gemini only phrases it, template fallback. Gemini calls fall through 3.8 -> 3.5 -> 3.5-lite -> 3.7 flash, skipping models that hit the daily quota. App: `api.insight()`, `api.squadLeaderboard()`, `period: 'improved'`, regenerated `schema.ts` + mocks (no insight UI yet; P3 can place it).
+- P2 Sharvil (`p2/weekly-insight`, merged in #9): `GET /ai/insight/{user_id}` -> `Insight`; `integrations/insight.py` finds the strongest pattern in the last 28 nights in code (bedtime-before-midnight, weekend drift, week trend, else steady), Gemini only phrases it, template fallback. Gemini calls fall through 3.8 -> 3.5 -> 3.5-lite -> 3.7 flash, skipping models that hit the daily quota. App: `api.insight()`, `api.squadLeaderboard()`, `period: 'improved'` (no insight UI yet; P3 can place it).
+- P2 Sharvil (`p2/elevenlabs-briefing`, PR #16): briefing read aloud (Listen button in the briefing sheet, ElevenLabs MP3 generated on tap and cached).
+- P2 Sharvil (`p2/api-client-catchup`, PR open): `schema.ts` regenerated; new `api.*`: `login/signup/logout/me` (Bearer token kept in memory), `history`, `profile/updateProfile/changePassword`, `prefs/savePrefs`, `logSleep`; readable `ApiError` messages (`isAuthError` for 401). Mocks now mirror the backend's 8 demo friends with 60 scored nights each, and the same auth/prefs/log rules. Squads, delete-my-data, sync status, friend card, ingest token are next.
 
 ## Next up
 - Everyone: scan the QR (`npx expo start --tunnel`) in Expo Go; the new UI is not yet verified on a phone.
 - P1 Promit: build the Shortcut and test a real sync; then streaks/badges, v3 continuous aggregate + compression.
 - Teammates: copy `DATABASE_URL` from Promit (never commit) or leave it unset to run on in-memory demo data.
-- P2: merge `p2/weekly-insight`; then Devpost + `docs/`. ElevenLabs audio deferred to the end if time allows (no key yet).
+- P2: second client PR (squads, delete my data, sync status, friend card, ingest token); then Devpost + `docs/`.
 - P3: merge PR #5; app icon + splash; wind-down notification; switch Improved / Squads boards to the real endpoints once P2 regenerates types.
-- P2 (asks from P3): done in `p2/weekly-insight`: `gen:api`, `api.squadLeaderboard()`, `period: 'improved'` (+ mocks). Still open: mock fixture names to match the demo story; manual log via `POST /sleep/shortcut`.
+- P3 (from P2): wire screens to the new client: login -> `api.login()` (drop the hard-coded password check), Trends/Achievements -> `api.history()` (drop `SAMPLE_NIGHTS`/`SAMPLE_BEST_STREAK`), Profile goals/privacy -> `api.prefs()/savePrefs()`, Log sleep sheet -> `api.logSleep()`. Mock names now match the backend's 8 demo friends.
 - P1 (asks from P3): nightly bed/wake times for past nights, best streak, previous rank (for rank arrows); endpoints to save targets, privacy toggles, manual logs, squads; delete-my-data; real login. Until then the app uses labelled sample data (`app/src/data/sample.ts`) and in-memory state.
 
 ## Blockers / decisions needed
@@ -51,4 +53,4 @@ v1 in progress. Last tag: v0 (scaffold).
 - CLAUDE.md "Design brief" still says Frutiger Aero / Liquid Glass and "pick-your-user"; the app now uses the black/white design and a login screen. Needs a team decision + doc update.
 - App: login, targets, logged nights and squads are in memory only (lost on reload). Sleep stages are demo data. Rank arrows compare against the previous night's ranking. Improved / Squads boards are computed in the app until the real endpoints are wired.
 
-Last updated: 2026-10-10, Sharvil (P2)
+Last updated: 2026-10-11, Sharvil (P2)
