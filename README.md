@@ -129,7 +129,6 @@ The app runs in **Expo Go** on an iPhone and talks to the live API above, so the
 4. ```powershell
    npx expo start --tunnel
    ```
-   Scan the QR code with the iPhone camera. It opens in Expo Go.
 
 #### Try it yourself (demo login)
 Use this account to explore the full app in Expo Go, with nothing to sign up for:
