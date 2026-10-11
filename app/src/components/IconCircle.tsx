@@ -1,34 +1,41 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
+import Svg, { Circle, Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
 
+import { Glass } from '@/components/Glass';
 import { colors } from '@/theme/colors';
 
 type Props = { name: SFSymbol; size?: number; color?: string };
 
-/** Glossy bubble holding a single icon (moon, bed, sun, ...): soft fill, bright rim, shine on top. */
+/** Glass orb holding one icon: same glass as the cards, plus a soft 3D highlight like a bubble. */
 export function IconCircle({ name, size = 44, color = colors.text }: Props) {
+  const c = size / 2;
   return (
-    <View style={[styles.circle, { width: size, height: size, borderRadius: size / 2 }]}>
-      <LinearGradient
-        colors={['rgba(255,255,255,0.6)', 'rgba(255,255,255,0.18)', 'rgba(255,255,255,0.02)']}
-        locations={[0, 0.48, 0.52]}
-        style={[StyleSheet.absoluteFill, { borderRadius: size / 2 }]}
-      />
-      <View style={[styles.spark, { width: size * 0.3, height: size * 0.13, borderRadius: size * 0.1, top: size * 0.14, left: size * 0.2 }]} />
+    <Glass style={[styles.circle, { width: size, height: size, borderRadius: c }]}>
+      <Svg width={size} height={size} style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Defs>
+          <RadialGradient id="orb" cx="38%" cy="30%" r="70%">
+            <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0.5} />
+            <Stop offset="0.45" stopColor="#FFFFFF" stopOpacity={0.08} />
+            <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0.22} />
+          </RadialGradient>
+        </Defs>
+        <Circle cx={c} cy={c} r={c} fill="url(#orb)" />
+        <Ellipse
+          cx={c * 0.7}
+          cy={c * 0.48}
+          rx={c * 0.32}
+          ry={c * 0.16}
+          fill="#FFFFFF"
+          opacity={0.75}
+          transform={`rotate(-30 ${c * 0.7} ${c * 0.48})`}
+        />
+      </Svg>
       <SymbolView name={name} size={size * 0.45} tintColor={color} />
-    </View>
+    </Glass>
   );
 }
 
 const styles = StyleSheet.create({
-  spark: { position: 'absolute', backgroundColor: '#FFFFFF', opacity: 0.75, transform: [{ rotate: '-30deg' }] },
-  circle: {
-    backgroundColor: colors.raised,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
+  circle: { alignItems: 'center', justifyContent: 'center' },
 });

@@ -3,7 +3,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { api } from '@/api/client';
-import type { User } from '@/api/types';
+import { ApiError, type LoginResponse, type User } from '@/api/types';
 import { Backdrop } from '@/components/Backdrop';
 import { Card } from '@/components/Card';
 import { GradientButton } from '@/components/GradientButton';
@@ -29,16 +28,24 @@ import { colors } from '@/theme/colors';
 import { fontFamily, type as t } from '@/theme/fonts';
 import { SCREEN_PADDING, spacing } from '@/theme/spacing';
 
-/** Shared password for the demo accounts until real auth exists. */
+/** Shared password for the demo profiles (the backend accepts it for is_demo users only). */
 const DEMO_PASSWORD = 'sleepsquad';
-/** New accounts are not on the backend yet, so they sign in to this demo profile. */
-const DEMO_PROFILE_ID = 1;
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-/** Deep navy glass for the form cards so white text reads on the bright daytime sky. */
-const FORM_TINT = 'rgba(10,32,84,0.55)';
+/** Same rule as the backend: 3-24 letters, digits, _ . or -. */
+const USERNAME_RE = /^[A-Za-z0-9_.-]{3,24}$/;
 
 const OFFLINE = "Can't reach the server. Check your connection.";
+
+/** The backend's message for a rejected request, or the offline message if the request never got there. */
+const messageOf = (e: unknown) => (e instanceof ApiError ? e.message : OFFLINE);
+
+function useFinish() {
+  const { signIn } = useUser();
+  return (res: LoginResponse) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    signIn(res);
+    router.replace('/');
+  };
+}
 
 type Mode = 'login' | 'signup';
 
@@ -76,7 +83,7 @@ export default function LoginScreen() {
             {mode === 'login' ? (
               <LoginForm users={users} onForgot={() => setForgotOpen(true)} />
             ) : (
-              <SignupForm users={users} />
+              <SignupForm />
             )}
 
             <View style={styles.switchRow}>
@@ -95,7 +102,7 @@ export default function LoginScreen() {
 }
 
 function LoginForm({ users, onForgot }: { users: User[]; onForgot: () => void }) {
-  const { signIn, accounts } = useUser();
+  const finish = useFinish();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -106,40 +113,21 @@ function LoginForm({ users, onForgot }: { users: User[]; onForgot: () => void })
     setError(null);
     setBusy(true);
     try {
-      const who = username.trim().toLowerCase();
-      // Accounts made on this phone: username or email + their own password.
-      const local = accounts.find((a) => a.username.toLowerCase() === who || a.email.toLowerCase() === who);
-      if (local && local.password === password) {
-        finish(DEMO_PROFILE_ID);
-        return;
-      }
-      const list = users.length ? users : await api.users();
-      const demo = list.find((u) => u.name.toLowerCase() === who);
-      if (!demo || password !== DEMO_PASSWORD) {
-        setError('That username and password do not match.');
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        return;
-      }
-      finish(demo.id);
-    } catch {
-      setError(OFFLINE);
+      finish(await api.login(username.trim(), password));
+    } catch (e) {
+      setError(messageOf(e));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setBusy(false);
     }
   };
 
-  const finish = (id: number) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    signIn(id);
-    router.replace('/');
-  };
-
   return (
     <View style={styles.form}>
-      <Card tint={FORM_TINT}>
+      <Card>
         <View style={styles.fields}>
           <TextField
-            label="Username or email"
+            label="Username"
             value={username}
             onChangeText={(v) => {
               setUsername(v);
@@ -199,99 +187,53 @@ function LoginForm({ users, onForgot }: { users: User[]; onForgot: () => void })
   );
 }
 
-type SignupErrors = Partial<Record<'name' | 'email' | 'username' | 'password' | 'confirm', string>>;
+type SignupErrors = Partial<Record<'username' | 'password' | 'confirm' | 'form', string>>;
 
-function SignupForm({ users }: { users: User[] }) {
-  const { signIn, accounts, addAccount } = useUser();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+function SignupForm() {
+  const finish = useFinish();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [errors, setErrors] = useState<SignupErrors>({});
-  const emailRef = useRef<TextInput>(null);
-  const userRef = useRef<TextInput>(null);
+  const [busy, setBusy] = useState(false);
   const passRef = useRef<TextInput>(null);
   const confirmRef = useRef<TextInput>(null);
 
   const validate = (): SignupErrors => {
     const e: SignupErrors = {};
-    const handle = username.trim().toLowerCase();
-    if (name.trim().length < 2) e.name = 'Enter your name.';
-    if (!EMAIL_RE.test(email.trim())) e.email = 'Enter a valid email address.';
-    else if (accounts.some((a) => a.email.toLowerCase() === email.trim().toLowerCase()))
-      e.email = 'An account with this email already exists.';
-    if (!/^[a-z0-9_.]{3,20}$/i.test(username.trim())) e.username = '3-20 letters, numbers, dots or underscores.';
-    else if (accounts.some((a) => a.username.toLowerCase() === handle) || users.some((u) => u.name.toLowerCase() === handle))
-      e.username = 'That username is taken.';
+    if (!USERNAME_RE.test(username.trim())) e.username = '3-24 letters, numbers, dots, dashes or underscores.';
     if (password.length < 8) e.password = 'Use at least 8 characters.';
     if (confirm !== password) e.confirm = 'Passwords do not match.';
     return e;
   };
 
-  const submit = () => {
+  const submit = async () => {
     const e = validate();
     setErrors(e);
     if (Object.keys(e).length) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
-    addAccount({ name: name.trim(), email: email.trim(), username: username.trim(), password });
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(
-      `Welcome to Somni, ${name.trim().split(' ')[0]}`,
-      "Accounts aren't saved on the server yet, so you'll see a demo profile's sleep data for now.",
-      [
-        {
-          text: 'Continue',
-          onPress: () => {
-            signIn(DEMO_PROFILE_ID);
-            router.replace('/');
-          },
-        },
-      ],
-    );
+    setBusy(true);
+    try {
+      finish(await api.signup(username.trim(), password));
+    } catch (err) {
+      const msg = messageOf(err);
+      // 409 = username taken; show it under the field instead of the form.
+      setErrors(err instanceof ApiError && err.status === 409 ? { username: msg } : { form: msg });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const clear = (k: keyof SignupErrors) => setErrors((e) => ({ ...e, [k]: undefined }));
+  const clear = (k: keyof SignupErrors) => setErrors((e) => ({ ...e, [k]: undefined, form: undefined }));
 
   return (
     <View style={styles.form}>
-      <Card tint={FORM_TINT}>
+      <Card>
         <View style={styles.fields}>
           <TextField
-            label="Full name"
-            value={name}
-            onChangeText={(v) => {
-              setName(v);
-              clear('name');
-            }}
-            placeholder="Alex Rivera"
-            autoCapitalize="words"
-            textContentType="name"
-            returnKeyType="next"
-            onSubmitEditing={() => emailRef.current?.focus()}
-            error={errors.name}
-          />
-          <TextField
-            ref={emailRef}
-            label="Email"
-            value={email}
-            onChangeText={(v) => {
-              setEmail(v);
-              clear('email');
-            }}
-            placeholder="you@school.edu"
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            returnKeyType="next"
-            onSubmitEditing={() => userRef.current?.focus()}
-            error={errors.email}
-          />
-          <TextField
-            ref={userRef}
             label="Username"
             value={username}
             onChangeText={(v) => {
@@ -339,7 +281,8 @@ function SignupForm({ users }: { users: User[] }) {
         </View>
       </Card>
 
-      <GradientButton label="Create account" onPress={submit} />
+      {errors.form && <Text style={styles.error}>{errors.form}</Text>}
+      <GradientButton label={busy ? 'Creating account...' : 'Create account'} onPress={submit} disabled={busy} />
       <Text style={[t.caption, styles.center, styles.readable]}>
         Somni reads sleep times and stages only. Friends see your score and streak, nothing else. Not medical advice.
       </Text>
@@ -349,53 +292,15 @@ function SignupForm({ users }: { users: User[] }) {
 
 function ForgotSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   return (
-    <Sheet visible={visible} onClose={onClose} title="Reset password" subtitle="Enter the email you signed up with.">
-      {visible && <ForgotForm onDone={onClose} />}
-    </Sheet>
-  );
-}
-
-function ForgotForm({ onDone }: { onDone: () => void }) {
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
-
-  if (sent) {
-    return (
+    <Sheet visible={visible} onClose={onClose} title="Forgot password">
       <View style={styles.form}>
         <Text style={t.body}>
-          Password reset by email isn&apos;t connected yet, so no email was sent to {email.trim()}. For the demo accounts, the
-          password is {DEMO_PASSWORD}.
+          Somni doesn&apos;t store your email, so there&apos;s no reset link yet. If you&apos;re still signed in on another phone,
+          change it in Profile. Demo profiles use the password {DEMO_PASSWORD}.
         </Text>
-        <GradientButton label="Back to log in" onPress={onDone} />
+        <GradientButton label="Back to log in" onPress={onClose} />
       </View>
-    );
-  }
-
-  return (
-    <View style={styles.form}>
-      <TextField
-        label="Email"
-        value={email}
-        onChangeText={(v) => {
-          setEmail(v);
-          setError(null);
-        }}
-        placeholder="you@school.edu"
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="email-address"
-        textContentType="emailAddress"
-        returnKeyType="send"
-        onSubmitEditing={() => (EMAIL_RE.test(email.trim()) ? setSent(true) : setError('Enter a valid email address.'))}
-        error={error}
-      />
-      <GradientButton
-        label="Send reset link"
-        disabled={!email.trim()}
-        onPress={() => (EMAIL_RE.test(email.trim()) ? setSent(true) : setError('Enter a valid email address.'))}
-      />
-    </View>
+    </Sheet>
   );
 }
 

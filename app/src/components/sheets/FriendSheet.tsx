@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import type { LeaderboardEntry } from '@/api/types';
+import { api } from '@/api/client';
+import type { FriendCard, LeaderboardEntry } from '@/api/types';
 import { Avatar } from '@/components/Avatar';
 import { BadgeHex } from '@/components/BadgeHex';
 import { Card } from '@/components/Card';
@@ -8,12 +10,30 @@ import { Sheet } from '@/components/Sheet';
 import { BADGES, type BadgeKey } from '@/theme/badges';
 import { colors, scoreBand } from '@/theme/colors';
 import { type as t } from '@/theme/fonts';
+import { clockFromMinutes } from '@/utils/format';
 
 type Props = { entry: LeaderboardEntry | null; isMe: boolean; onClose: () => void; extra?: string };
 
 /** Friend card: score and streak only. Sleep details stay private unless the friend shares them. */
 export function FriendSheet({ entry, isMe, onClose, extra }: Props) {
   const badge = BADGES.find((b) => b.key === entry?.badge)?.key as BadgeKey | undefined;
+  const [loaded, setCard] = useState<FriendCard | null>(null);
+  const id = entry?.user_id;
+  const card = loaded?.user_id === id ? loaded : null;
+
+  useEffect(() => {
+    if (id == null) return;
+    let live = true;
+    api
+      .friendCard(id)
+      .then((c) => live && setCard(c))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [id]);
+
+  const details = card?.details;
   return (
     <Sheet visible={!!entry} onClose={onClose}>
       {entry && (
@@ -40,11 +60,28 @@ export function FriendSheet({ entry, isMe, onClose, extra }: Props) {
             </View>
           </Card>
 
+          {details && (
+            <Card padding={0} style={styles.statsCard}>
+              <View style={styles.stats}>
+                <Stat label="Usual bedtime" value={clockFromMinutes(details.avg_bedtime)} />
+                <View style={styles.vline} />
+                <Stat label="Avg sleep" value={`${details.avg_hours} h`} />
+                <View style={styles.vline} />
+                <Stat label="Best streak" value={`${card?.best_streak ?? 0}`} />
+              </View>
+            </Card>
+          )}
+
+          {card?.bio ? <Text style={[t.body, styles.center]}>{card.bio}</Text> : null}
           {extra && <Text style={[t.body, styles.center]}>{extra}</Text>}
           <Text style={[t.caption, styles.center]}>
             {isMe
-              ? 'Friends see your score and streak. Turn on "Share details with friends" in Profile to show more.'
-              : `Sleep details are private unless ${entry.name} shares them.`}
+              ? details
+                ? 'You share your bedtime and hours with friends. Turn it off in Profile under Privacy.'
+                : 'Friends see your score and streak. Turn on "Share details with friends" in Profile to show more.'
+              : details
+                ? `${entry.name} shares their last 7 nights. Not medical advice.`
+                : `Sleep details are private unless ${entry.name} shares them.`}
           </Text>
         </View>
       )}

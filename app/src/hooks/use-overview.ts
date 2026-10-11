@@ -2,26 +2,30 @@ import { useCallback, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 
 import { api } from '@/api/client';
-import type { Overview } from '@/api/types';
+import type { HistoryNight, Overview } from '@/api/types';
 import { useUser } from '@/state/user';
 
-/** Current user's overview. Refetches on pull-to-refresh and when the app returns to the foreground (e.g. after the Shortcut). */
+/**
+ * Current user's overview plus their last 60 nights. Refetches on pull-to-refresh, when the app returns to
+ * the foreground (e.g. after the Shortcut), and after any change the user makes (logged night, goals, squad).
+ */
 export function useOverview() {
-  const { userId } = useUser();
+  const { userId, version } = useUser();
   const [overview, setOverview] = useState<Overview | null>(null);
+  const [history, setHistory] = useState<HistoryNight[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
+    if (!userId) return;
     let live = true;
-    api
-      .overview(userId)
-      .then((o) => {
-        if (live) {
-          setOverview(o);
-          setError(null);
-        }
+    Promise.all([api.overview(userId), api.history(userId, 60).catch(() => null)])
+      .then(([o, h]) => {
+        if (!live) return;
+        setOverview(o);
+        if (h) setHistory(h);
+        setError(null);
       })
       .catch((e: Error) => {
         if (live) setError(e.message);
@@ -32,7 +36,7 @@ export function useOverview() {
     return () => {
       live = false;
     };
-  }, [userId, tick]);
+  }, [userId, tick, version]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
@@ -47,5 +51,5 @@ export function useOverview() {
   }, []);
 
   /** `tick` bumps on every refetch, so dependent cards (briefing) can refresh too. */
-  return { overview, error, setError, refreshing, refresh, tick, userId };
+  return { overview, history, error, setError, refreshing, refresh, tick: tick + version, userId };
 }

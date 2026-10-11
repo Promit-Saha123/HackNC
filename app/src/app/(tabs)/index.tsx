@@ -10,6 +10,7 @@ import { Card, Divider } from '@/components/Card';
 import { GlassIconButton } from '@/components/Glass';
 import { GlassBubble } from '@/components/GlassBubble';
 import { IconCircle } from '@/components/IconCircle';
+import { InsightCard } from '@/components/InsightCard';
 import { Screen, Section } from '@/components/Screen';
 import { SleepRing } from '@/components/SleepRing';
 import { CalendarSheet } from '@/components/sheets/CalendarSheet';
@@ -25,15 +26,15 @@ import { colors, scoreBand } from '@/theme/colors';
 import { fontFamily, type as t } from '@/theme/fonts';
 import { SCREEN_PADDING } from '@/theme/spacing';
 import { clock, hm, longDate, weekday } from '@/utils/format';
-import { dayEntries, demoStages, minutesOfDay } from '@/utils/nights';
+import { dayEntries, minutesOfDay, nightStages } from '@/utils/nights';
 
 type SheetKey = 'night' | 'calendar' | 'log' | 'targets' | 'squad';
 
 const RING_MAX = 320;
 
 export default function HomeScreen() {
-  const { overview, error, tick, userId, refreshing, refresh } = useOverview();
-  const { goals, logs } = usePrefs();
+  const { overview, history, error, tick, userId, refreshing, refresh } = useOverview();
+  const { goals } = usePrefs();
   const { width } = useWindowDimensions();
   const [sheet, setSheet] = useState<SheetKey | null>(null);
   const [info, setInfo] = useState<Info | null>(null);
@@ -42,8 +43,8 @@ export default function HomeScreen() {
   const night = overview?.last_night;
   const score = overview?.score?.score ?? null;
   const streak = overview?.streak_days ?? 0;
-  const entries = dayEntries(overview, logs);
-  const stages = night ? demoStages(night.duration_min) : null;
+  const entries = dayEntries(history);
+  const stages = night ? nightStages(night) : null;
   const ringSize = Math.min(RING_MAX, width - 2 * SCREEN_PADDING - 20);
   const close = () => setSheet(null);
 
@@ -106,6 +107,7 @@ export default function HomeScreen() {
       </View>
 
       <BriefingCard userId={userId} refreshKey={tick} />
+      <InsightCard userId={userId} refreshKey={tick} />
 
       <Section title="Quick recap">
       <View style={styles.recap}>
@@ -153,7 +155,8 @@ export default function HomeScreen() {
                 <Text style={styles.logTitle}>
                   {i === 0 ? 'Last sleep' : 'Sleep'} ({weekday(e.day)})
                 </Text>
-                <Text style={t.caption}>{e.bed && e.wake ? `${clock(e.bed)} - ${clock(e.wake)}` : 'Synced night'}</Text>
+                <Text style={t.caption}>{e.bed && e.wake ? `${clock(e.bed)} - ${clock(e.wake)}` : 'Synced night'}
+                  {e.source === 'logged' ? ' · logged' : ''}</Text>
               </View>
               <View style={styles.logRight}>
                 {e.minutes != null && <Text style={styles.logTitle}>{hm(e.minutes)}</Text>}
@@ -171,7 +174,7 @@ export default function HomeScreen() {
       <CalendarSheet visible={sheet === 'calendar'} onClose={close} entries={entries} initialDay={calendarDay} />
       <LogSleepSheet visible={sheet === 'log'} onClose={close} />
       <TargetsSheet visible={sheet === 'targets'} onClose={close} />
-      <SquadSheet visible={sheet === 'squad'} onClose={close} backendSquad={overview?.user.squad} />
+      <SquadSheet visible={sheet === 'squad'} onClose={close} />
       <InfoSheet info={info} onClose={() => setInfo(null)} />
     </Screen>
   );

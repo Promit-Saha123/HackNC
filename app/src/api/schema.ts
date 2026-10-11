@@ -28,7 +28,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Users */
+        /**
+         * Users
+         * @description The demo profiles (the login picker), paged. Real accounts are never listed, so strangers can't enumerate them.
+         */
         get: operations["users_users_get"];
         put?: never;
         post?: never;
@@ -47,6 +50,26 @@ export interface paths {
         };
         /** Overview */
         get: operations["overview_users__user_id__overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{user_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * History
+         * @description The last `days` nights (oldest first) with times, stage minutes and score: powers the calendar and Trends.
+         */
+        get: operations["history_users__user_id__history_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -87,7 +110,7 @@ export interface paths {
         /**
          * Shortcut
          * @description Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line.
-         *     Auth: X-Ingest-Token (from POST /ingest/token). A bare X-User-Id is accepted for demo profiles only.
+         *     Identify the user with a plain X-User-Id, or with an X-Ingest-Token (from POST /ingest/token), which wins if both are sent.
          */
         post: operations["shortcut_sleep_shortcut_post"];
         delete?: never;
@@ -103,7 +126,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Leaderboard */
+        /**
+         * Leaderboard
+         * @description Top `limit` entries. Ranking and the streak lookups happen in the database, so cost follows `limit`, not user count.
+         */
         get: operations["leaderboard_leaderboard_get"];
         put?: never;
         post?: never;
@@ -125,6 +151,26 @@ export interface paths {
          * @description Squad vs squad: average member score.
          */
         get: operations["squads_leaderboard_squads_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/squads/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Squad Detail
+         * @description Who is in a squad (by invite code). Score-level info only, and members who hid from the leaderboard are left out.
+         */
+        get: operations["squad_detail_squads__code__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -228,6 +274,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Signup
+         * @description Create a real account and sign it in. The username and a hash of the password are stored (never the password).
+         *     409 if the username already has an account, or if the caller is already signed in to a real account.
+         */
+        post: operations["signup_auth_signup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -256,6 +323,47 @@ export interface paths {
         get: operations["me_auth_me_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Me */
+        get: operations["get_me_me_get"];
+        /**
+         * Update Me
+         * @description Change name, avatar or bio. Demo profiles are shared, so they are read-only.
+         */
+        put: operations["update_me_me_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Password
+         * @description Needs the current password. Demo profiles share one password, so they can't change it.
+         */
+        post: operations["change_password_me_password_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -335,6 +443,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/squad/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Leave Squad */
+        post: operations["leave_squad_me_squad_leave_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sync Status
+         * @description Apple Health row on Profile: has the Shortcut synced, and when.
+         */
+        get: operations["sync_status_me_sync_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -374,6 +519,10 @@ export interface components {
             /** Badge */
             badge?: string | null;
             details?: components["schemas"]["FriendDetails"] | null;
+            /** Avatar */
+            avatar?: string | null;
+            /** Bio */
+            bio?: string | null;
         };
         /** FriendDetails */
         FriendDetails: {
@@ -386,6 +535,43 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HistoryNight
+         * @description One night in GET /users/{id}/history: the full night plus its score.
+         */
+        HistoryNight: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /**
+             * Bedtime
+             * Format: date-time
+             */
+            bedtime: string;
+            /**
+             * Wake Time
+             * Format: date-time
+             */
+            wake_time: string;
+            /** Duration Min */
+            duration_min: number;
+            /** Efficiency */
+            efficiency: number;
+            /** Deep Min */
+            deep_min: number;
+            /** Rem Min */
+            rem_min: number;
+            /** Light Min */
+            light_min: number;
+            /** Awake Min */
+            awake_min: number;
+            /** Source */
+            source: string;
+            /** Score */
+            score: number;
         };
         /** IngestToken */
         IngestToken: {
@@ -486,6 +672,8 @@ export interface components {
             bedtime?: string | null;
             /** Wake Time */
             wake_time?: string | null;
+            /** Duration Min */
+            duration_min?: number | null;
         };
         /** Overview */
         Overview: {
@@ -509,6 +697,13 @@ export interface components {
              * @default 0
              */
             best_streak: number;
+        };
+        /** PasswordChange */
+        PasswordChange: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
         };
         /**
          * Prefs
@@ -541,6 +736,63 @@ export interface components {
              */
             show_on_board: boolean;
         };
+        /**
+         * Profile
+         * @description The signed-in user's own profile (GET/PUT /me).
+         */
+        Profile: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Avatar */
+            avatar?: string | null;
+            /** Bio */
+            bio?: string | null;
+            /** Squad */
+            squad?: string | null;
+            /**
+             * Is Demo
+             * @default true
+             */
+            is_demo: boolean;
+            /** Member Since */
+            member_since?: string | null;
+            /**
+             * @default {
+             *       "nights": 0,
+             *       "best_streak": 0
+             *     }
+             */
+            stats: components["schemas"]["ProfileStats"];
+        };
+        /** ProfileStats */
+        ProfileStats: {
+            /**
+             * Nights
+             * @default 0
+             */
+            nights: number;
+            /**
+             * Best Streak
+             * @default 0
+             */
+            best_streak: number;
+            /** Avg Score */
+            avg_score?: number | null;
+        };
+        /**
+         * ProfileUpdate
+         * @description Send only what changes. Empty string clears avatar or bio.
+         */
+        ProfileUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Avatar */
+            avatar?: string | null;
+            /** Bio */
+            bio?: string | null;
+        };
         /** ScoreBreakdown */
         ScoreBreakdown: {
             /** Score */
@@ -566,6 +818,13 @@ export interface components {
             samples_skipped: number;
             /** Nights Found */
             nights_found: number;
+        };
+        /** SignupRequest */
+        SignupRequest: {
+            /** Username */
+            username: string;
+            /** Password */
+            password: string;
         };
         /** SleepNight */
         SleepNight: {
@@ -604,6 +863,15 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** SquadDetail */
+        SquadDetail: {
+            /** Name */
+            name: string;
+            /** Code */
+            code: string;
+            /** Members */
+            members: components["schemas"]["SquadMember"][];
+        };
         /** SquadEntry */
         SquadEntry: {
             /** Rank */
@@ -636,6 +904,38 @@ export interface components {
             period: "week" | "all";
             /** Entries */
             entries: components["schemas"]["SquadEntry"][];
+        };
+        /**
+         * SquadMember
+         * @description Score-level info only: members who hid themselves from the leaderboard are left out.
+         */
+        SquadMember: {
+            /** User Id */
+            user_id: number;
+            /** Name */
+            name: string;
+            /**
+             * Streak Days
+             * @default 0
+             */
+            streak_days: number;
+            /** Badge */
+            badge?: string | null;
+        };
+        /**
+         * SyncStatus
+         * @description Apple Health sync state for the Profile screen (the iOS Shortcut is the only sync path).
+         */
+        SyncStatus: {
+            /** Connected */
+            connected: boolean;
+            /** Last Sync At */
+            last_sync_at?: string | null;
+            /**
+             * Nights Synced
+             * @default 0
+             */
+            nights_synced: number;
         };
         /** User */
         User: {
@@ -697,7 +997,10 @@ export interface operations {
     };
     users_users_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -713,12 +1016,23 @@ export interface operations {
                     "application/json": components["schemas"]["User"][];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     overview_users__user_id__overview_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string;
+            };
             path: {
                 user_id: number;
             };
@@ -733,6 +1047,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Overview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    history_users__user_id__history_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: {
+                authorization?: string;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryNight"][];
                 };
             };
             /** @description Validation Error */
@@ -814,6 +1163,7 @@ export interface operations {
             query?: {
                 period?: "week" | "all" | "improved";
                 squad?: string | null;
+                limit?: number;
             };
             header?: never;
             path?: never;
@@ -845,6 +1195,7 @@ export interface operations {
         parameters: {
             query?: {
                 period?: "week" | "all";
+                limit?: number;
             };
             header?: never;
             path?: never;
@@ -859,6 +1210,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SquadLeaderboard"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    squad_detail_squads__code__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SquadDetail"];
                 };
             };
             /** @description Validation Error */
@@ -1029,6 +1411,41 @@ export interface operations {
             };
         };
     };
+    signup_auth_signup_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     login_auth_login_post: {
         parameters: {
             query?: never;
@@ -1081,6 +1498,105 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["User"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_me_me_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Profile"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_me_me_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Profile"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_password_me_password_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -1282,6 +1798,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SquadInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    leave_squad_me_squad_leave_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_status_me_sync_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncStatus"];
                 };
             };
             /** @description Validation Error */

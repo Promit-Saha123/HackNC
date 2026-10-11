@@ -7,11 +7,13 @@ import { Divider } from '@/components/Card';
 import { GradientButton, OutlineButton } from '@/components/GradientButton';
 import { Sheet } from '@/components/Sheet';
 import { Stepper } from '@/components/Stepper';
+import { api } from '@/api/client';
 import { usePrefs } from '@/state/prefs';
+import { useUser } from '@/state/user';
 import { colors } from '@/theme/colors';
 import { fontFamily, type as t } from '@/theme/fonts';
 import { clockFromMinutes, hm } from '@/utils/format';
-import { isoDay } from '@/utils/nights';
+import { localIso } from '@/utils/nights';
 
 const SHORTCUT_URL = 'shortcuts://run-shortcut?name=SleepSquad%20Sync';
 
@@ -34,7 +36,9 @@ function atMinutes(day: Date, minutes: number) {
 }
 
 function LogForm({ onDone }: { onDone: () => void }) {
-  const { goals, addLog } = usePrefs();
+  const { goals } = usePrefs();
+  const { bump } = useUser();
+  const [saving, setSaving] = useState(false);
   const [daysAgo, setDaysAgo] = useState(0);
   const [bed, setBed] = useState(goals.bedtime);
   const [wake, setWake] = useState(goals.wake);
@@ -48,7 +52,23 @@ function LogForm({ onDone }: { onDone: () => void }) {
   const bedAt = atMinutes(bedDay, bed);
   const wakeAt = atMinutes(wakeDay, wake);
   const minutes = Math.round((wakeAt.getTime() - bedAt.getTime()) / 60000);
-  const valid = minutes > 0 && minutes <= 16 * 60;
+  const valid = minutes >= 60 && minutes <= 16 * 60;
+
+  const save = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await api.logNight(localIso(bedAt), localIso(wakeAt));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      bump();
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save that night.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const nightLabel =
     daysAgo === 0
@@ -80,13 +100,9 @@ function LogForm({ onDone }: { onDone: () => void }) {
       {error && <Text style={styles.error}>{error}</Text>}
 
       <GradientButton
-        label="Save night"
-        disabled={!valid}
-        onPress={() => {
-          addLog({ day: isoDay(wakeAt), bed: bedAt.toISOString(), wake: wakeAt.toISOString() });
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          onDone();
-        }}
+        label={saving ? 'Saving...' : 'Save night'}
+        disabled={!valid || saving}
+        onPress={save}
       />
       <OutlineButton
         label="Sync from Apple Health instead"

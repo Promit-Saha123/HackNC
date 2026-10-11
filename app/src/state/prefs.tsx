@@ -1,5 +1,7 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
+import { api } from '@/api/client';
+import type { Prefs as ServerPrefs, SquadInfo } from '@/api/types';
 import { DEFAULT_GOALS } from '@/data/sample';
 import { useUser } from '@/state/user';
 
@@ -10,18 +12,19 @@ export type Goals = {
   hours: number;
 };
 
-/** A night entered by hand in Log Sleep. `day` is the wake-up date (YYYY-MM-DD). */
-export type ManualLog = { day: string; bed: string; wake: string };
+export type Privacy = { share_details: boolean; show_on_board: boolean };
 
-export type Squad = { name: string; code: string };
+export type Squad = SquadInfo;
 
 type Prefs = {
   goals: Goals;
-  setGoals: (g: Goals) => void;
-  logs: ManualLog[];
-  addLog: (log: ManualLog) => void;
-  /** Squad created or joined in the app; null means use the backend's squad. */
+  /** Saves on the server; throws (and rolls back) if that fails. */
+  setGoals: (g: Goals) => Promise<void>;
+  privacy: Privacy;
+  setPrivacy: (p: Partial<Privacy>) => Promise<void>;
+  /** The user's squad from the server; null when not in one. */
   squad: Squad | null;
+  /** Call after creating, joining or leaving a squad through the API. */
   setSquad: (s: Squad | null) => void;
 };
 
@@ -33,23 +36,58 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
   return <UserPrefs key={userId}>{children}</UserPrefs>;
 }
 
-// TODO(P1/P2): these live only in memory for now. Goals, manual logs and squads need backend endpoints.
+const DEFAULT_PRIVACY: Privacy = { share_details: true, show_on_board: true };
+
+/** Goals, privacy and squad, loaded from /me/prefs and /me/squad once per sign-in. */
 function UserPrefs({ children }: { children: ReactNode }) {
-  const [goals, setGoals] = useState<Goals>(DEFAULT_GOALS);
-  const [logs, setLogs] = useState<ManualLog[]>([]);
-  const [squad, setSquad] = useState<Squad | null>(null);
+  const { signedIn, bump } = useUser();
+  const [server, setServer] = useState<ServerPrefs>({ ...DEFAULT_GOALS, ...DEFAULT_PRIVACY });
+  const [squad, setSquadState] = useState<Squad | null>(null);
+
+  useEffect(() => {
+    if (!signedIn) return;
+    let live = true;
+    api.prefs().then((p) => live && setServer(p)).catch(() => {});
+    api.mySquad().then((s) => live && setSquadState(s)).catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [signedIn]);
+
+  const save = useCallback(
+    async (patch: Partial<ServerPrefs>) => {
+      const prev = server;
+      const next = { ...server, ...patch };
+      setServer(next); // optimistic
+      try {
+        setServer(await api.savePrefs(next));
+        bump(); // goals change the score, privacy changes the boards
+      } catch (e) {
+        setServer(prev);
+        throw e;
+      }
+    },
+    [server, bump],
+  );
+
+  const setSquad = useCallback(
+    (s: Squad | null) => {
+      setSquadState(s);
+      bump();
+    },
+    [bump],
+  );
 
   const value = useMemo<Prefs>(
     () => ({
-      goals,
-      setGoals,
-      logs,
-      // One log per night: a new entry for the same day replaces the old one.
-      addLog: (log) => setLogs((prev) => [...prev.filter((l) => l.day !== log.day), log]),
+      goals: { bedtime: server.bedtime ?? DEFAULT_GOALS.bedtime, wake: server.wake ?? DEFAULT_GOALS.wake, hours: server.hours ?? DEFAULT_GOALS.hours },
+      setGoals: (g) => save(g),
+      privacy: { share_details: server.share_details ?? true, show_on_board: server.show_on_board ?? true },
+      setPrivacy: (p) => save(p),
       squad,
       setSquad,
     }),
-    [goals, logs, squad],
+    [server, save, squad, setSquad],
   );
 
   return <PrefsContext.Provider value={value}>{children}</PrefsContext.Provider>;

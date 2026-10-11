@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { api } from '@/api/client';
-import type { LeaderboardEntry, Overview } from '@/api/types';
+import type { LeaderboardEntry, SquadEntry } from '@/api/types';
 import { Avatar } from '@/components/Avatar';
 import { Card, Divider } from '@/components/Card';
 import { GlassIconButton } from '@/components/Glass';
@@ -36,57 +36,20 @@ const SUBTITLE: Record<Board, string> = {
   squads: 'Average score per squad',
 };
 
-type SquadRow = { rank: number; name: string; avg: number; members: LeaderboardEntry[]; mine: boolean };
+/** Places moved since last night: positive = moved up. New entries (no previous rank) show no arrow. */
+const rankDelta = (e: LeaderboardEntry) => (e.prev_rank == null ? 0 : e.prev_rank - e.rank);
 
-const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
-
-/** Score change across the week: average of the last 3 nights minus the earlier ones. */
-function improvement(scores: number[]) {
-  if (scores.length < 4) return 0;
-  return Math.round(avg(scores.slice(-3)) - avg(scores.slice(0, scores.length - 3)));
-}
-
-/**
- * Places moved since yesterday: compares today's rank with a ranking on each person's previous night.
- * TODO(P1): replace with a real previous-rank field from the leaderboard endpoint.
- */
-function rankDeltas(entries: LeaderboardEntry[], overviews: Overview[]) {
-  const prevScore = new Map(
-    overviews.map((o) => {
-      const h = o.history;
-      return [o.user.id, h.length >= 2 ? h[h.length - 2].score : (h[0]?.score ?? 0)];
-    }),
-  );
-  const prevOrder = [...entries].sort((a, b) => (prevScore.get(b.user_id) ?? 0) - (prevScore.get(a.user_id) ?? 0));
-  const deltas: Record<number, number> = {};
-  entries.forEach((e) => (deltas[e.user_id] = prevOrder.findIndex((p) => p.user_id === e.user_id) + 1 - e.rank));
-  return deltas;
-}
-
-/** Groups people by squad and ranks squads by average member score (so big squads don't win by size). */
-function squadRows(entries: LeaderboardEntry[], meId: number, mySquad: string | null): SquadRow[] {
-  const groups = new Map<string, LeaderboardEntry[]>();
-  for (const e of entries) {
-    // A squad created or joined in the app moves you out of your backend squad.
-    const name = e.user_id === meId && mySquad ? mySquad : e.squad;
-    if (!name) continue;
-    groups.set(name, [...(groups.get(name) ?? []), e]);
-  }
-  return [...groups.entries()]
-    .map(([name, members]) => ({ name, members, avg: avg(members.map((m) => m.score)), mine: name === mySquad }))
-    .sort((a, b) => b.avg - a.avg)
-    .map((s, i) => ({ ...s, rank: i + 1 }));
-}
+/** Score change for the Improved board: this week's average minus last week's. */
+const gainOf = (e: LeaderboardEntry) => Math.round(e.delta ?? 0);
 
 const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
 
 export default function LeaderboardScreen() {
-  const { userId } = useUser();
+  const { userId, version } = useUser();
   const { squad } = usePrefs();
   const [board, setBoard] = useState<Board>('week');
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-  const [gains, setGains] = useState<Record<number, number>>({});
-  const [deltas, setDeltas] = useState<Record<number, number>>({});
+  const [squads, setSquads] = useState<SquadEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [tick, setTick] = useState(0);
@@ -96,24 +59,15 @@ export default function LeaderboardScreen() {
 
   useEffect(() => {
     let live = true;
-    const load = async () => {
-      const list = await api.leaderboard(board === 'all' ? 'all' : 'week');
-      const overviews = await Promise.all(list.entries.map((e) => api.overview(e.user_id)));
-      const g: Record<number, number> = {};
-      overviews.forEach((o) => (g[o.user.id] = improvement(o.history.map((h) => h.score))));
-      // TODO(P1): a real "most improved" board needs last week's scores; this compares early vs late this week.
-      const ranked =
-        board === 'improved'
-          ? [...list.entries].sort((a, b) => g[b.user_id] - g[a.user_id]).map((e, i) => ({ ...e, rank: i + 1 }))
-          : list.entries;
-      return { entries: ranked, gains: g, deltas: rankDeltas(list.entries, overviews) };
-    };
-    load()
+    const load =
+      board === 'squads'
+        ? api.squadLeaderboard('week').then((r) => ({ entries: [] as LeaderboardEntry[], squads: r.entries }))
+        : api.leaderboard(board).then((r) => ({ entries: r.entries, squads: [] as SquadEntry[] }));
+    load
       .then((r) => {
         if (live) {
           setEntries(r.entries);
-          setGains(r.gains);
-          setDeltas(r.deltas);
+          setSquads(r.squads);
           setError(null);
         }
       })
@@ -126,15 +80,13 @@ export default function LeaderboardScreen() {
     return () => {
       live = false;
     };
-  }, [board, tick]);
+  }, [board, tick, version]);
 
-  const me = entries.find((e) => e.user_id === userId);
-  const mySquad = squad?.name ?? me?.squad ?? null;
-  const squads = board === 'squads' ? squadRows(entries, userId, mySquad) : [];
+  const mySquad = squad?.name ?? null;
   const showDelta = board === 'week' || board === 'all';
 
   const valueOf = (e: LeaderboardEntry) =>
-    board === 'improved' ? signed(gains[e.user_id] ?? 0) : `${Math.round(e.score)}`;
+    board === 'improved' ? signed(gainOf(e)) : `${Math.round(e.score)}`;
   const top = board === 'squads' ? [] : entries.slice(0, 3);
   const rest = board === 'squads' ? [] : entries.slice(3);
 
@@ -144,7 +96,7 @@ export default function LeaderboardScreen() {
       board === 'improved'
         ? [
             'Most improved ranks people by how much their score went up, compared only to their own earlier nights. It replaces any "worst sleeper" list.',
-            'For now it compares the last 3 nights with the start of this week.',
+            "It compares this week's average with last week's, and only shows people who improved.",
           ]
         : board === 'squads'
           ? [
@@ -159,31 +111,40 @@ export default function LeaderboardScreen() {
             ],
   });
 
-  const squadInfo = (s: SquadRow): Info => ({
-    title: s.name,
-    subtitle: `#${s.rank} · average ${Math.round(s.avg)} · ${s.members.length} ${s.members.length === 1 ? 'member' : 'members'}`,
-    body: ['Members show score and streak only.'],
-    extra: (
-      <Card padding={0}>
-        {[...s.members]
-          .sort((a, b) => b.score - a.score)
-          .map((m, i) => (
-            <View key={m.user_id}>
-              {i > 0 && <Divider />}
-              <View style={styles.memberRow}>
-                <Avatar name={m.name} size={32} glow={false} />
-                <Text style={[t.rowTitle, styles.flex]}>{m.user_id === userId ? 'You' : m.name}</Text>
-                <View style={styles.streak}>
-                  <SymbolView name="moon.fill" size={11} tintColor={colors.textSoft} />
-                  <Text style={t.caption}>{m.streak_days}</Text>
-                </View>
-                <Text style={[styles.score, styles.memberScore]}>{Math.round(m.score)}</Text>
-              </View>
-            </View>
-          ))}
-      </Card>
-    ),
-  });
+  const openSquad = async (sq: SquadEntry) => {
+    const base = {
+      title: sq.squad,
+      subtitle: `#${sq.rank} · average ${Math.round(sq.score)} · ${sq.members} ${sq.members === 1 ? 'member' : 'members'}`,
+      body: ['Members show score and streak only.'],
+    };
+    setInfo(base);
+    const members = await api.leaderboard('week', sq.squad).then((r) => r.entries).catch(() => []);
+    setInfo((cur) =>
+      cur?.title !== sq.squad
+        ? cur
+        : {
+            ...base,
+            extra: (
+              <Card padding={0}>
+                {members.map((m, i) => (
+                  <View key={m.user_id}>
+                    {i > 0 && <Divider />}
+                    <View style={styles.memberRow}>
+                      <Avatar name={m.name} size={32} glow={false} />
+                      <Text style={[t.rowTitle, styles.flex]}>{m.user_id === userId ? 'You' : m.name}</Text>
+                      <View style={styles.streak}>
+                        <SymbolView name="moon.fill" size={11} tintColor={colors.textSoft} />
+                        <Text style={t.caption}>{m.streak_days}</Text>
+                      </View>
+                      <Text style={[styles.score, styles.memberScore]}>{Math.round(m.score)}</Text>
+                    </View>
+                  </View>
+                ))}
+              </Card>
+            ),
+          },
+    );
+  };
 
   return (
     <Screen
@@ -207,7 +168,7 @@ export default function LeaderboardScreen() {
           top={top}
           meId={userId}
           valueOf={valueOf}
-          delta={showDelta ? (e) => deltas[e.user_id] ?? 0 : undefined}
+          delta={showDelta ? rankDelta : undefined}
           onPress={setFriend}
         />
       )}
@@ -216,7 +177,7 @@ export default function LeaderboardScreen() {
         <Card padding={0}>
           {rest.map((e, i) => {
             const isMe = e.user_id === userId;
-            const gain = gains[e.user_id] ?? 0;
+            const gain = gainOf(e);
             return (
               <View key={e.user_id}>
                 {i > 0 && <Divider />}
@@ -239,7 +200,7 @@ export default function LeaderboardScreen() {
                   ) : (
                     <View style={styles.right}>
                       <Text style={[styles.score, { color: colors[scoreBand(e.score)] }]}>{Math.round(e.score)}</Text>
-                      <RankChange delta={deltas[e.user_id] ?? 0} />
+                      <RankChange delta={rankDelta(e)} />
                     </View>
                   )}
                 </Pressable>
@@ -254,21 +215,21 @@ export default function LeaderboardScreen() {
           <Card padding={0}>
             {squads.length === 0 && <Text style={[t.body, styles.empty]}>No squads yet.</Text>}
             {squads.map((s, i) => (
-              <View key={s.name}>
+              <View key={s.squad}>
                 {i > 0 && <Divider />}
                 <Pressable
-                  style={({ pressed }) => [styles.row, s.mine && styles.me, pressed && styles.pressed]}
-                  onPress={() => setInfo(squadInfo(s))}>
+                  style={({ pressed }) => [styles.row, s.squad === mySquad && styles.me, pressed && styles.pressed]}
+                  onPress={() => openSquad(s)}>
                   <Text style={styles.rank}>{s.rank}</Text>
                   <IconCircle name="person.3.fill" size={40} />
                   <View style={styles.who}>
-                    <Text style={t.rowTitle}>{s.name}</Text>
+                    <Text style={t.rowTitle}>{s.squad}</Text>
                     <Text style={t.caption}>
-                      {s.members.length} {s.members.length === 1 ? 'member' : 'members'}
-                      {s.mine ? ' · your squad' : ''}
+                      {s.members} {s.members === 1 ? 'member' : 'members'}
+                      {s.squad === mySquad ? ' · your squad' : ''}
                     </Text>
                   </View>
-                  <Text style={[styles.score, { color: colors[scoreBand(s.avg)] }]}>{Math.round(s.avg)}</Text>
+                  <Text style={[styles.score, { color: colors[scoreBand(s.score)] }]}>{Math.round(s.score)}</Text>
                 </Pressable>
               </View>
             ))}
@@ -286,12 +247,12 @@ export default function LeaderboardScreen() {
         onClose={() => setFriend(null)}
         extra={
           friend && board === 'improved'
-            ? `${signed(gains[friend.user_id] ?? 0)} points compared with the start of the week.`
+            ? `${signed(gainOf(friend))} points compared with last week.`
             : undefined
         }
       />
       <InfoSheet info={info} onClose={() => setInfo(null)} />
-      <SquadSheet visible={squadSheet} onClose={() => setSquadSheet(false)} backendSquad={me?.squad} />
+      <SquadSheet visible={squadSheet} onClose={() => setSquadSheet(false)} />
     </Screen>
   );
 }

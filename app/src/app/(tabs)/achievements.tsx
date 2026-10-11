@@ -9,7 +9,6 @@ import { Card, Divider } from '@/components/Card';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Screen, Section } from '@/components/Screen';
 import { Sheet } from '@/components/Sheet';
-import { SAMPLE_BEST_STREAK } from '@/data/sample';
 import { useOverview } from '@/hooks/use-overview';
 import { BADGES, type BadgeKey } from '@/theme/badges';
 import { colors } from '@/theme/colors';
@@ -26,7 +25,7 @@ export default function AchievementsScreen() {
   const [open, setOpen] = useState<BadgeKey | null>(null);
 
   const streak = overview?.streak_days ?? 0;
-  const best = Math.max(streak, SAMPLE_BEST_STREAK);
+  const best = Math.max(streak, overview?.best_streak ?? 0);
   const badges = badgeStates(streak, overview?.badge);
   const unlockedCount = badges.filter((b) => b.unlocked).length;
   const next = badges.find((b) => !b.unlocked);
@@ -111,8 +110,6 @@ export default function AchievementsScreen() {
           </Card>
         </Section>
       )}
-
-      <Text style={[t.caption, styles.note]}>Best streak is sample data for now.</Text>
 
       <Sheet visible={!!selected} onClose={() => setOpen(null)}>
         {selected && (

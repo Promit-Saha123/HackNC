@@ -1,52 +1,51 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
-/** An account made on the Create account screen. Kept in memory only until the backend has real auth. */
-export type LocalAccount = { name: string; username: string; email: string; password: string };
+import { setToken } from '@/api/client';
+import type { LoginResponse, User } from '@/api/types';
 
 type UserState = {
   userId: number;
-  setUserId: (id: number) => void;
-  /** Hard-coded demo login for now: no tokens, resets when the app reloads. */
+  user: User | null;
   signedIn: boolean;
-  signIn: (id: number) => void;
+  /** Store the token from /auth/login or /auth/signup; every request after this is signed. */
+  signIn: (res: LoginResponse) => void;
   signOut: () => void;
-  accounts: LocalAccount[];
-  addAccount: (a: LocalAccount) => void;
+  /** Bumped after anything that changes the user's data (a logged night, new goals, a squad), so screens refetch. */
+  version: number;
+  bump: () => void;
 };
 
 const UserContext = createContext<UserState>({
-  userId: 1,
-  setUserId: () => {},
+  userId: 0,
+  user: null,
   signedIn: false,
   signIn: () => {},
   signOut: () => {},
-  accounts: [],
-  addAccount: () => {},
+  version: 0,
+  bump: () => {},
 });
 
-// TODO(P1): swap for real auth (hashed passwords on the backend, token on the phone).
+/** Signed-in account. The token lives in memory only, so reloading the app signs out. */
 export function UserProvider({ children }: { children: ReactNode }) {
-  const [userId, setUserId] = useState(1);
-  const [signedIn, setSignedIn] = useState(false);
-  const [accounts, setAccounts] = useState<LocalAccount[]>([]);
-  const signIn = (id: number) => {
-    setUserId(id);
-    setSignedIn(true);
-  };
-  return (
-    <UserContext.Provider
-      value={{
-        userId,
-        setUserId,
-        signedIn,
-        signIn,
-        signOut: () => setSignedIn(false),
-        accounts,
-        addAccount: (a) => setAccounts((prev) => [...prev, a]),
-      }}>
-      {children}
-    </UserContext.Provider>
+  const [user, setUser] = useState<User | null>(null);
+  const [version, setVersion] = useState(0);
+
+  const signIn = useCallback((res: LoginResponse) => {
+    setToken(res.token);
+    setUser(res.user);
+  }, []);
+  const signOut = useCallback(() => {
+    setToken(null);
+    setUser(null);
+  }, []);
+  const bump = useCallback(() => setVersion((v) => v + 1), []);
+
+  const value = useMemo<UserState>(
+    () => ({ userId: user?.id ?? 0, user, signedIn: !!user, signIn, signOut, version, bump }),
+    [user, version, signIn, signOut, bump],
   );
+
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }
 
 export const useUser = () => useContext(UserContext);

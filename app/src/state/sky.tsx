@@ -1,34 +1,21 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 
-import { nowHour, skyAt, type Sky } from '@/utils/sky';
+import { skyAt, type Sky } from '@/utils/sky';
 
-type SkyState = Sky & {
-  hour: number;
-  /** null = follow the phone's clock. */
-  preview: number | null;
-  setPreview: (h: number | null) => void;
-};
+/**
+ * The app is always night: a fixed hour (about 3:30 am) that puts the crescent moon in the upper right
+ * with full stars. Change NIGHT_HOUR to move the moon along its arc.
+ */
+const NIGHT_HOUR = 3.5;
+const NIGHT_SKY: Sky & { hour: number } = { ...skyAt(NIGHT_HOUR), hour: NIGHT_HOUR };
 
-const SkyContext = createContext<SkyState | null>(null);
+const SkyContext = createContext<Sky & { hour: number }>(NIGHT_SKY);
 
-/** Shares the time-of-day sky with every screen. Re-reads the clock every minute so the scene drifts slowly. */
+/** Shares the (fixed) night sky with every screen. */
 export function SkyProvider({ children }: { children: ReactNode }) {
-  const [clock, setClock] = useState(nowHour);
-  // TEMP: forced to midday so the day theme can be checked. Set back to null to follow the clock.
-  const [preview, setPreview] = useState<number | null>(12);
-
-  useEffect(() => {
-    const id = setInterval(() => setClock(nowHour()), 60_000);
-    return () => clearInterval(id);
-  }, []);
-
-  const hour = preview ?? clock;
-  const value = useMemo(() => ({ ...skyAt(hour), hour, preview, setPreview }), [hour, preview]);
-  return <SkyContext.Provider value={value}>{children}</SkyContext.Provider>;
+  return <SkyContext.Provider value={NIGHT_SKY}>{children}</SkyContext.Provider>;
 }
 
 export function useSky() {
-  const ctx = useContext(SkyContext);
-  if (!ctx) throw new Error('useSky must be used inside SkyProvider');
-  return ctx;
+  return useContext(SkyContext);
 }

@@ -7,6 +7,7 @@ import { GradientButton } from '@/components/GradientButton';
 import { Sheet } from '@/components/Sheet';
 import { Stepper } from '@/components/Stepper';
 import { usePrefs } from '@/state/prefs';
+import { colors } from '@/theme/colors';
 import { type as t } from '@/theme/fonts';
 import { clockFromMinutes, hm } from '@/utils/format';
 
@@ -24,6 +25,23 @@ export function TargetsSheet({ visible, onClose }: Props) {
 function TargetsForm({ onDone }: { onDone: () => void }) {
   const { goals, setGoals } = usePrefs();
   const [draft, setDraft] = useState(goals);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await setGoals(draft);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save your targets.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const window = (draft.wake - draft.bedtime + 1440) % 1440;
 
@@ -61,18 +79,13 @@ function TargetsForm({ onDone }: { onDone: () => void }) {
       <Text style={t.caption}>
         That window is {hm(window)} in bed. Most adults do best with 7 to 9 hours of sleep.
       </Text>
-      <GradientButton
-        label="Save targets"
-        onPress={() => {
-          setGoals(draft);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          onDone();
-        }}
-      />
+      {error && <Text style={styles.error}>{error}</Text>}
+      <GradientButton label={saving ? 'Saving...' : 'Save targets'} disabled={saving} onPress={save} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   body: { gap: 16 },
+  error: { color: colors.danger, fontSize: 14 },
 });

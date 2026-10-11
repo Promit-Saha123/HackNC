@@ -187,14 +187,16 @@ function Arc({ c, r, width, color, start, sweep, progress, opacity = 1, round }:
   );
 }
 
+const shadow = { textShadowColor: 'rgba(8,30,80,0.5)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } };
+
 const styles = StyleSheet.create({
   pressed: { opacity: 0.85 },
-  numeral: { position: 'absolute', textAlign: 'center', color: colors.tabInactive, fontFamily: fontFamily.medium },
+  numeral: { position: 'absolute', textAlign: 'center', color: colors.text, fontFamily: fontFamily.semibold, ...shadow },
   center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
-  label: { color: colors.textSoft, fontFamily: fontFamily.medium },
-  score: { color: colors.text, fontFamily: fontFamily.bold, fontVariant: ['tabular-nums'], letterSpacing: -1 },
+  label: { color: colors.textSoft, fontFamily: fontFamily.medium, ...shadow },
+  score: { color: colors.text, fontFamily: fontFamily.bold, fontVariant: ['tabular-nums'], letterSpacing: -1, ...shadow },
   percent: { color: colors.textSoft, fontFamily: fontFamily.semibold, letterSpacing: 0 },
-  hint: { color: colors.tabInactive, fontFamily: fontFamily.regular },
+  hint: { color: colors.textSoft, fontFamily: fontFamily.regular, ...shadow },
 });
 
 /**

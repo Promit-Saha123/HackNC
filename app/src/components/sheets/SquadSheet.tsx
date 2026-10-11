@@ -1,75 +1,123 @@
 import * as Haptics from 'expo-haptics';
-import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import { useEffect, useState } from 'react';
+import { Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Card } from '@/components/Card';
+import { api } from '@/api/client';
+import type { SquadMember } from '@/api/types';
+import { Avatar } from '@/components/Avatar';
+import { Card, Divider } from '@/components/Card';
 import { GradientButton, OutlineButton } from '@/components/GradientButton';
 import { Segmented } from '@/components/Segmented';
 import { Sheet } from '@/components/Sheet';
-import { DEMO_SQUAD_CODES } from '@/data/sample';
 import { usePrefs } from '@/state/prefs';
+import { useUser } from '@/state/user';
 import { colors } from '@/theme/colors';
 import { fontFamily, type as t } from '@/theme/fonts';
 import { radius } from '@/theme/spacing';
 
-type Props = { visible: boolean; onClose: () => void; backendSquad?: string | null };
+type Props = { visible: boolean; onClose: () => void };
 
-/** Join a squad with an invite code or create a new one. */
-export function SquadSheet({ visible, onClose, backendSquad }: Props) {
+/** Your squad and its members, or join one with an invite code / create a new one. */
+export function SquadSheet({ visible, onClose }: Props) {
   return (
     <Sheet visible={visible} onClose={onClose} title="Squads" subtitle="Squads compete on their members' average score.">
-      {visible && <SquadForm backendSquad={backendSquad ?? null} />}
+      {visible && <SquadForm />}
     </Sheet>
   );
 }
 
-const codeFor = (name: string) => {
-  const letters = name.replace(/[^a-z]/gi, '').toUpperCase().padEnd(4, 'X').slice(0, 4);
-  return `${letters}${Math.floor(10 + Math.random() * 90)}`;
-};
+const errorText = (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback);
 
-function SquadForm({ backendSquad }: { backendSquad: string | null }) {
+function SquadForm() {
   const { squad, setSquad } = usePrefs();
+  const { userId } = useUser();
   const [mode, setMode] = useState<'join' | 'create'>('join');
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  // Members plus the invite code they belong to, so a stale list never shows after switching squads.
+  const [loaded, setLoaded] = useState<{ code: string; members: SquadMember[] } | null>(null);
+  const members = squad?.code && loaded?.code === squad.code ? loaded.members : null;
 
-  const current = squad?.name ?? backendSquad;
-  const currentCode =
-    squad?.code ?? Object.entries(DEMO_SQUAD_CODES).find(([, name]) => name === backendSquad)?.[0] ?? null;
+  useEffect(() => {
+    const code = squad?.code;
+    if (!code) return;
+    let live = true;
+    api
+      .squad(code)
+      .then((d) => live && setLoaded({ code, members: d.members }))
+      .catch(() => live && setLoaded({ code, members: [] }));
+    return () => {
+      live = false;
+    };
+  }, [squad?.code]);
+
+  const run = async (action: () => Promise<void>, fallback: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+      setText('');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {
+      setError(errorText(e, fallback));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submit = () => {
     const value = text.trim();
-    if (mode === 'join') {
-      const name = DEMO_SQUAD_CODES[value.toUpperCase()];
-      if (!name) {
-        setError('No squad with that code. Try WOLF23 or OWLS42.');
-        return;
-      }
-      setSquad({ name, code: value.toUpperCase() });
-    } else {
-      if (value.length < 2) {
-        setError('Give your squad a name.');
-        return;
-      }
-      setSquad({ name: value, code: codeFor(value) });
-    }
-    setText('');
-    setError(null);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (!value) return;
+    if (mode === 'join') run(async () => setSquad(await api.joinSquad(value.toUpperCase())), 'Could not join that squad.');
+    else run(async () => setSquad(await api.createSquad(value)), 'Could not create that squad.');
   };
+
+  const leave = () => run(async () => {
+    await api.leaveSquad();
+    setSquad(null);
+  }, 'Could not leave the squad.');
 
   return (
     <View style={styles.body}>
       <Card>
         <Text style={t.caption}>Your squad</Text>
-        <Text style={t.rowTitle}>{current ?? 'Not in a squad yet'}</Text>
-        {currentCode && <Text style={t.body}>Invite code: {currentCode}</Text>}
+        <Text style={t.rowTitle}>{squad?.name ?? 'Not in a squad yet'}</Text>
+        {squad?.code ? (
+          <View style={styles.codeRow}>
+            <Text style={[t.body, styles.flex]}>Invite code: {squad.code}</Text>
+            <Text
+              style={styles.share}
+              onPress={() => Share.share({ message: `Join my Somni squad "${squad.name}" with code ${squad.code}` })}>
+              Share
+            </Text>
+          </View>
+        ) : null}
       </Card>
+
+      {squad && (
+        <Card padding={0}>
+          {members == null && <Text style={[t.caption, styles.pad]}>Loading members...</Text>}
+          {members?.length === 0 && <Text style={[t.caption, styles.pad]}>No visible members yet.</Text>}
+          {members?.map((m, i) => (
+            <View key={m.user_id}>
+              {i > 0 && <Divider />}
+              <View style={styles.member}>
+                <Avatar name={m.name} size={30} glow={false} />
+                <Text style={[t.rowTitle, styles.flex]}>{m.user_id === userId ? 'You' : m.name}</Text>
+                <SymbolView name="moon.fill" size={11} tintColor={colors.textSoft} />
+                <Text style={t.caption}>{m.streak_days ?? 0}</Text>
+              </View>
+            </View>
+          ))}
+        </Card>
+      )}
 
       <Segmented
         options={[
-          { key: 'join', label: 'Join' },
+          { key: 'join', label: squad ? 'Switch' : 'Join' },
           { key: 'create', label: 'Create' },
         ]}
         value={mode}
@@ -96,14 +144,23 @@ function SquadForm({ backendSquad }: { backendSquad: string | null }) {
       />
       {error && <Text style={styles.error}>{error}</Text>}
 
-      <GradientButton label={mode === 'join' ? 'Join squad' : 'Create squad'} onPress={submit} disabled={!text.trim()} />
-      {squad && <OutlineButton label="Leave squad" onPress={() => setSquad(null)} />}
+      <GradientButton
+        label={busy ? 'One sec...' : mode === 'join' ? 'Join squad' : 'Create squad'}
+        onPress={submit}
+        disabled={!text.trim() || busy}
+      />
+      {squad && <OutlineButton label="Leave squad" onPress={leave} />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   body: { gap: 14 },
+  flex: { flex: 1 },
+  pad: { padding: 14 },
+  codeRow: { flexDirection: 'row', alignItems: 'center' },
+  share: { fontFamily: fontFamily.semibold, fontSize: 15, color: colors.text, textDecorationLine: 'underline' },
+  member: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 },
   input: {
     height: 52,
     borderRadius: radius.button,

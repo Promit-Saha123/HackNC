@@ -1,6 +1,6 @@
-import type { Overview } from '@/api/types';
+import type { HistoryNight, SleepNight } from '@/api/types';
 import { DEMO_STAGE_SPLIT } from '@/data/sample';
-import type { ManualLog } from '@/state/prefs';
+import { toDate } from '@/utils/format';
 
 /** Everything we know about one night, keyed by wake-up date. */
 export type DayEntry = {
@@ -12,38 +12,18 @@ export type DayEntry = {
   source: 'synced' | 'logged';
 };
 
-const minutesBetween = (a: string, b: string) => Math.round((new Date(b).getTime() - new Date(a).getTime()) / 60000);
-
-/** Merges synced history (scores, last night's times) with nights logged by hand. Newest first. */
-export function dayEntries(overview: Overview | null, logs: ManualLog[]): DayEntry[] {
-  const map = new Map<string, DayEntry>();
-  for (const h of overview?.history ?? []) {
-    map.set(h.day, { day: h.day, score: h.score, bed: null, wake: null, minutes: null, source: 'synced' });
-  }
-  const last = overview?.last_night;
-  if (last) {
-    const prev = map.get(last.day);
-    map.set(last.day, {
-      day: last.day,
-      score: prev?.score ?? overview?.score?.score ?? null,
-      bed: last.bedtime,
-      wake: last.wake_time,
-      minutes: last.duration_min,
-      source: 'synced',
-    });
-  }
-  for (const l of logs) {
-    const prev = map.get(l.day);
-    map.set(l.day, {
-      day: l.day,
-      score: prev?.score ?? null,
-      bed: l.bed,
-      wake: l.wake,
-      minutes: minutesBetween(l.bed, l.wake),
-      source: 'logged',
-    });
-  }
-  return [...map.values()].sort((a, b) => (a.day < b.day ? 1 : -1));
+/** Nights from /users/{id}/history as calendar/log entries. Newest first. */
+export function dayEntries(history: HistoryNight[]): DayEntry[] {
+  return history
+    .map((n) => ({
+      day: n.day,
+      score: n.score,
+      bed: n.bedtime,
+      wake: n.wake_time,
+      minutes: n.duration_min,
+      source: n.source === 'manual' ? ('logged' as const) : ('synced' as const),
+    }))
+    .sort((a, b) => (a.day < b.day ? 1 : -1));
 }
 
 export type Stages = { deep: number; light: number; rem: number; awake: number };
@@ -55,7 +35,15 @@ export const STAGE_META: { key: keyof Stages; label: string; color: string; abou
   { key: 'awake', label: 'Awake', color: '#FFB3C8', about: 'Short wake-ups. A few are normal.' },
 ];
 
-/** Minutes per stage for a night. Uses demo proportions: there is no real stage tracking yet. */
+/** Real stage minutes when the night has them (Apple Health); hand-logged nights fall back to typical proportions. */
+export function nightStages(night: SleepNight): Stages {
+  if (night.deep_min + night.rem_min > 0) {
+    return { deep: night.deep_min, light: night.light_min, rem: night.rem_min, awake: night.awake_min };
+  }
+  return demoStages(night.duration_min);
+}
+
+/** Minutes per stage from typical proportions, for nights without stage data. */
 export function demoStages(totalMinutes: number): Stages {
   return {
     deep: Math.round(totalMinutes * DEMO_STAGE_SPLIT.deep),
@@ -67,10 +55,14 @@ export function demoStages(totalMinutes: number): Stages {
 
 /** Local minutes after midnight for an ISO date-time. */
 export const minutesOfDay = (iso: string) => {
-  const d = new Date(iso);
+  const d = toDate(iso);
   return d.getHours() * 60 + d.getMinutes();
 };
 
 /** YYYY-MM-DD in local time. */
 export const isoDay = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** Device-local ISO date-time with no UTC offset (what POST /me/sleep expects), e.g. 2026-10-10T23:15:00. */
+export const localIso = (d: Date) =>
+  `${isoDay(d)}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:00`;

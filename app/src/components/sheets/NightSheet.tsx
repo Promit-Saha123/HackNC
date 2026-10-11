@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import type { Overview } from '@/api/types';
 import { Card, Divider } from '@/components/Card';
@@ -39,7 +39,7 @@ export function NightSheet({ visible, onClose, overview, stages, goals }: Props)
 
   return (
     <Sheet visible={visible} onClose={onClose} title="Last night" subtitle={score ? `Rest score ${Math.round(score.score)}%` : 'No night synced yet'}>
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <View style={styles.body}>
         {stages && total > 0 && (
           <View style={styles.block}>
             <Text style={t.rowTitle}>Sleep stages · inner ring</Text>
@@ -114,7 +114,7 @@ export function NightSheet({ visible, onClose, overview, stages, goals }: Props)
         )}
 
         <Text style={[t.caption, styles.note]}>Sleep stages are demo data for now. Somni is not medical advice.</Text>
-      </ScrollView>
+      </View>
     </Sheet>
   );
 }

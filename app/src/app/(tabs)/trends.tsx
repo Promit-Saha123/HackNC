@@ -1,20 +1,19 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { Overview } from '@/api/types';
+import type { HistoryNight } from '@/api/types';
 import { Avatar } from '@/components/Avatar';
 import { Card, Divider } from '@/components/Card';
 import { NightBarChart, type ChartBar } from '@/components/NightBarChart';
 import { Screen, Section } from '@/components/Screen';
 import { Segmented } from '@/components/Segmented';
 import { InfoSheet, type Info } from '@/components/sheets/InfoSheet';
-import { SAMPLE_NIGHTS } from '@/data/sample';
 import { useOverview } from '@/hooks/use-overview';
 import { usePrefs } from '@/state/prefs';
 import { colors, scoreBand, type ScoreBand } from '@/theme/colors';
 import { type as t } from '@/theme/fonts';
 import { spacing } from '@/theme/spacing';
-import { clockFromMinutes, hm, shortDay, weekday } from '@/utils/format';
+import { clockFromMinutes, hm, shortDay, toDate, weekday } from '@/utils/format';
 
 type View3 = 'score' | 'bed' | 'bedtime';
 
@@ -34,25 +33,21 @@ type Night = {
   /** Minutes after 9 pm. */
   bed: number;
   asleep: number;
-  sample: boolean;
 };
 
 const minutesAfter9pm = (iso: string) => {
-  const d = new Date(iso);
+  const d = toDate(iso);
   return (d.getHours() * 60 + d.getMinutes() - AXIS_START + 1440) % 1440;
 };
 
-/** One entry per night in the overview history; nights without real times borrow sample values. */
-function buildNights(overview: Overview | null): Night[] {
-  const history = (overview?.history ?? []).slice(-7);
-  const last = overview?.last_night;
-  return history.map((h, i) => {
-    if (last && h.day === last.day) {
-      return { day: h.day, score: h.score, bed: minutesAfter9pm(last.bedtime), asleep: last.duration_min, sample: false };
-    }
-    const s = SAMPLE_NIGHTS[SAMPLE_NIGHTS.length - history.length + i] ?? SAMPLE_NIGHTS[0];
-    return { day: h.day, score: h.score, bed: s.bedAfter9pm, asleep: s.asleepMin, sample: true };
-  });
+/** The last 7 nights from /users/{id}/history. */
+function buildNights(history: HistoryNight[]): Night[] {
+  return history.slice(-7).map((n) => ({
+    day: n.day,
+    score: n.score,
+    bed: minutesAfter9pm(n.bedtime),
+    asleep: n.duration_min,
+  }));
 }
 
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
@@ -137,17 +132,16 @@ const BAND_HELP: Record<ScoreBand, string> = {
 };
 
 export default function TrendsScreen() {
-  const { overview, error, refreshing, refresh } = useOverview();
+  const { overview, history, error, refreshing, refresh } = useOverview();
   const [view, setView] = useState<View3>('score');
   const [selected, setSelected] = useState<number | null>(null);
   const [info, setInfo] = useState<Info | null>(null);
   const { goals } = usePrefs();
   const target = (goals.bedtime - AXIS_START + 1440) % 1440;
 
-  const nights = buildNights(overview);
+  const nights = buildNights(history);
   const bars = nights.map((n) => toBar(n, view, target));
   const [statA, statB] = statsFor(nights, view);
-  const usesSample = view !== 'score' && nights.some((n) => n.sample);
   const picked = selected != null ? nights[selected] : null;
 
   const subtitle =
@@ -262,10 +256,6 @@ export default function TrendsScreen() {
           })}
         </Card>
       </Section>
-
-      {usesSample && (
-        <Text style={[t.caption, styles.note]}>Only last night has real times so far. Earlier nights use sample data.</Text>
-      )}
 
       <InfoSheet info={info} onClose={() => setInfo(null)} />
     </Screen>
