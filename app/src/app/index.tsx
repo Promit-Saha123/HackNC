@@ -1,147 +1,198 @@
-import * as Linking from 'expo-linking';
-import { useEffect, useState } from 'react';
-import { AppState, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { USE_MOCKS, api } from '@/api/client';
-import type { Overview } from '@/api/types';
+import { ActionBar } from '@/components/ActionBar';
 import { Avatar } from '@/components/Avatar';
 import { Card, Divider } from '@/components/Card';
-import { GradientButton } from '@/components/GradientButton';
 import { IconCircle } from '@/components/IconCircle';
-import { Screen, Section } from '@/components/Screen';
-import { ScoreRing } from '@/components/ScoreRing';
-import { useUser } from '@/state/user';
+import { Screen } from '@/components/Screen';
+import { SleepRing } from '@/components/SleepRing';
+import { CalendarSheet } from '@/components/sheets/CalendarSheet';
+import { InfoSheet, type Info } from '@/components/sheets/InfoSheet';
+import { LogSleepSheet } from '@/components/sheets/LogSleepSheet';
+import { NightSheet } from '@/components/sheets/NightSheet';
+import { SquadSheet } from '@/components/sheets/SquadSheet';
+import { TargetsSheet } from '@/components/sheets/TargetsSheet';
+import { useOverview } from '@/hooks/use-overview';
+import { usePrefs } from '@/state/prefs';
+import { BADGES } from '@/theme/badges';
 import { colors, scoreBand } from '@/theme/colors';
 import { type as t } from '@/theme/fonts';
 import { clock, hm, longDate, weekday } from '@/utils/format';
+import { dayEntries, demoStages, minutesOfDay } from '@/utils/nights';
 
-const SHORTCUT_URL = 'shortcuts://run-shortcut?name=SleepSquad%20Sync';
+type SheetKey = 'night' | 'calendar' | 'log' | 'targets' | 'squad';
+
+const RING_MIN = 130;
+const RING_MAX = 290;
 
 export default function HomeScreen() {
-  const { userId } = useUser();
-  const [overview, setOverview] = useState<Overview | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    let live = true;
-    api
-      .overview(userId)
-      .then((o) => {
-        if (live) {
-          setOverview(o);
-          setError(null);
-        }
-      })
-      .catch((e: Error) => {
-        if (live) setError(e.message);
-      })
-      .finally(() => {
-        if (live) setRefreshing(false);
-      });
-    return () => {
-      live = false;
-    };
-  }, [userId, tick]);
-
-  // Coming back from the Shortcut (or any backgrounding) refetches.
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') setTick((n) => n + 1);
-    });
-    return () => sub.remove();
-  }, []);
+  const { overview, error } = useOverview();
+  const { goals, logs } = usePrefs();
+  const [sheet, setSheet] = useState<SheetKey | null>(null);
+  const [info, setInfo] = useState<Info | null>(null);
+  const [calendarDay, setCalendarDay] = useState<string | null>(null);
+  const [ringBox, setRingBox] = useState({ w: 0, h: 0 });
 
   const night = overview?.last_night;
   const score = overview?.score?.score ?? null;
-  // Newest first, skipping nothing: the first row is last night.
-  const log = [...(overview?.history ?? [])].reverse().slice(0, 3);
+  const streak = overview?.streak_days ?? 0;
+  const entries = dayEntries(overview, logs);
+  const stages = night ? demoStages(night.duration_min) : null;
+  const ringSize = Math.max(RING_MIN, Math.min(RING_MAX, ringBox.w, ringBox.h));
+  const close = () => setSheet(null);
+
+  const openCalendar = (day: string | null) => {
+    setCalendarDay(day);
+    setSheet('calendar');
+  };
+
+  const timeInfo = (): Info => ({
+    title: 'Time asleep',
+    subtitle: night ? hm(night.duration_min) : 'No night synced yet',
+    body: night
+      ? [
+          `You were in bed from ${clock(night.bedtime)} to ${clock(night.wake_time)} and asleep for ${Math.round(night.efficiency * 100)}% of it.`,
+          `Your target is ${goals.hours} hours. Duration is 40% of your score: full marks between 7 and 9 hours, falling to zero at 5 hours.`,
+        ]
+      : ['Log a night or sync from Apple Health to see it here.'],
+    action: { label: 'Change targets', onPress: () => { setInfo(null); setTimeout(() => setSheet('targets'), 450); } },
+  });
+
+  const streakInfo = (): Info => {
+    const next = BADGES.find((b) => b.nights > streak);
+    return {
+      title: `${streak}-night streak`,
+      subtitle: next ? `${next.nights - streak} more to unlock ${next.label}` : 'Every badge unlocked',
+      body: [
+        'A night counts toward your streak if you sleep 7 hours or more and go to bed within 1 hour of your usual bedtime.',
+        'Streaks unlock badges at 3, 7, 14 and 30 nights, and add up to 10 points to your nightly score.',
+      ],
+      action: { label: 'See badges', onPress: () => { setInfo(null); router.navigate('/achievements'); } },
+    };
+  };
 
   return (
     <Screen
+      scroll={false}
       title="Welcome"
-      subtitle={longDate()}
-      right={<Avatar name={overview?.user.name ?? '?'} />}
-      refreshing={refreshing}
-      onRefresh={() => {
-        setRefreshing(true);
-        setTick((n) => n + 1);
-      }}>
-      {error && <Text style={styles.error}>Can&apos;t reach the backend: {error}</Text>}
+      subtitle={error ? "Can't reach the backend" : longDate()}
+      right={
+        <>
+          <Pressable
+            hitSlop={8}
+            onPress={() => openCalendar(null)}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
+            <SymbolView name="calendar" size={20} tintColor={colors.text} />
+          </Pressable>
+          <Pressable hitSlop={8} onPress={() => router.navigate('/profile')}>
+            <Avatar name={overview?.user.name ?? '?'} />
+          </Pressable>
+        </>
+      }>
+      <View
+        style={styles.ringArea}
+        onLayout={(e) => setRingBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+        {ringBox.h > 0 && (
+          <SleepRing
+            size={ringSize}
+            score={score}
+            stages={stages}
+            sleep={night ? { bed: minutesOfDay(night.bedtime), wake: minutesOfDay(night.wake_time) } : null}
+            target={{ bed: goals.bedtime, wake: goals.wake }}
+            onPress={() => setSheet('night')}
+          />
+        )}
+      </View>
 
-      <ScoreRing score={score} inner={night?.efficiency} />
-      {score == null && !error && overview && <Text style={[t.body, styles.center]}>No sleep synced yet.</Text>}
-
-      <Section title="Quick recap">
-        <Card padding={0}>
-          <View style={styles.recap}>
-            <View style={styles.recapCell}>
-              <IconCircle name="moon.fill" />
-              <View>
-                <Text style={t.caption}>Time sleep</Text>
-                <Text style={t.rowTitle}>{night ? hm(night.duration_min) : '--'}</Text>
-              </View>
+      <Card padding={0}>
+        <View style={styles.recap}>
+          <Pressable style={({ pressed }) => [styles.recapCell, pressed && styles.pressed]} onPress={() => setInfo(timeInfo())}>
+            <IconCircle name="moon.fill" size={40} />
+            <View>
+              <Text style={t.caption}>Time slept</Text>
+              <Text style={t.rowTitle}>{night ? hm(night.duration_min) : '--'}</Text>
             </View>
-            <View style={styles.vline} />
-            <View style={styles.recapCell}>
-              <IconCircle name="chart.pie.fill" />
-              <View>
-                <Text style={t.caption}>Streak</Text>
-                <Text style={t.rowTitle}>{overview ? `${overview.streak_days} nights` : '--'}</Text>
-              </View>
+          </Pressable>
+          <View style={styles.vline} />
+          <Pressable style={({ pressed }) => [styles.recapCell, pressed && styles.pressed]} onPress={() => setInfo(streakInfo())}>
+            <IconCircle name="flame.fill" size={40} />
+            <View>
+              <Text style={t.caption}>Streak</Text>
+              <Text style={t.rowTitle}>{overview ? `${streak} nights` : '--'}</Text>
             </View>
-          </View>
-        </Card>
-      </Section>
+          </Pressable>
+        </View>
+      </Card>
 
-      <Section title="Sleep log">
-        <Card padding={0}>
-          {log.length === 0 && <Text style={[t.body, styles.empty]}>Nothing logged yet.</Text>}
-          {log.map((h, i) => {
-            const isLast = night && h.day === night.day;
-            return (
-              <View key={h.day}>
-                {i > 0 && <Divider />}
-                <View style={styles.logRow}>
-                  <View style={styles.logText}>
-                    <Text style={t.rowTitle}>
-                      {i === 0 ? 'Last sleep' : 'Sleep'} ({weekday(h.day)})
-                    </Text>
-                    {isLast && night && (
-                      <Text style={t.body}>
-                        {clock(night.bedtime)} - {clock(night.wake_time)}
-                      </Text>
-                    )}
-                  </View>
-                  <View style={styles.logRight}>
-                    {isLast && night && <Text style={t.rowTitle}>{hm(night.duration_min)}</Text>}
-                    <Text style={[t.body, { color: colors[scoreBand(h.score)] }]}>{Math.round(h.score)}%</Text>
-                  </View>
-                </View>
-              </View>
-            );
-          })}
-        </Card>
-      </Section>
-
-      <GradientButton
-        label="Sync from Apple Watch"
-        onPress={() => Linking.openURL(SHORTCUT_URL).catch(() => setError('Could not open Shortcuts'))}
+      <ActionBar
+        actions={[
+          { key: 'log', label: 'Log sleep', icon: 'plus', onPress: () => setSheet('log') },
+          { key: 'targets', label: 'Targets', icon: 'target', onPress: () => setSheet('targets') },
+          { key: 'squad', label: 'Squads', icon: 'person.3.fill', onPress: () => setSheet('squad') },
+        ]}
       />
-      {USE_MOCKS && <Text style={[t.caption, styles.center]}>Showing mock data</Text>}
+
+      <Card padding={0}>
+        <Pressable style={styles.logHead} onPress={() => openCalendar(null)}>
+          <Text style={t.rowTitle}>Sleep log</Text>
+          <Text style={styles.link}>See calendar</Text>
+        </Pressable>
+        {entries.length === 0 && <Text style={[t.body, styles.empty]}>Nothing logged yet.</Text>}
+        {entries.slice(0, 2).map((e, i) => (
+          <View key={e.day}>
+            <Divider />
+            <Pressable style={({ pressed }) => [styles.logRow, pressed && styles.pressed]} onPress={() => openCalendar(e.day)}>
+              <View style={styles.logText}>
+                <Text style={styles.logTitle}>
+                  {i === 0 ? 'Last sleep' : 'Sleep'} ({weekday(e.day)})
+                </Text>
+                <Text style={t.caption}>{e.bed && e.wake ? `${clock(e.bed)} - ${clock(e.wake)}` : 'Synced night'}</Text>
+              </View>
+              <View style={styles.logRight}>
+                {e.minutes != null && <Text style={styles.logTitle}>{hm(e.minutes)}</Text>}
+                {e.score != null && (
+                  <Text style={[t.caption, { color: colors[scoreBand(e.score)] }]}>{Math.round(e.score)}%</Text>
+                )}
+              </View>
+            </Pressable>
+          </View>
+        ))}
+      </Card>
+
+      <NightSheet visible={sheet === 'night'} onClose={close} overview={overview} stages={stages} goals={goals} />
+      <CalendarSheet visible={sheet === 'calendar'} onClose={close} entries={entries} initialDay={calendarDay} />
+      <LogSleepSheet visible={sheet === 'log'} onClose={close} />
+      <TargetsSheet visible={sheet === 'targets'} onClose={close} />
+      <SquadSheet visible={sheet === 'squad'} onClose={close} backendSquad={overview?.user.squad} />
+      <InfoSheet info={info} onClose={() => setInfo(null)} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { textAlign: 'center' },
-  error: { color: colors.danger, fontSize: 14 },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.raised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pressed: { opacity: 0.75 },
+  ringArea: { flex: 1, minHeight: RING_MIN, alignItems: 'center', justifyContent: 'center' },
   recap: { flexDirection: 'row', alignItems: 'center' },
-  recapCell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
+  recapCell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
   vline: { width: 1, alignSelf: 'stretch', backgroundColor: colors.divider },
-  empty: { padding: 16 },
-  logRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-  logText: { flex: 1, gap: 2 },
-  logRight: { alignItems: 'flex-end', gap: 2 },
+  logHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10 },
+  link: { color: colors.tabActive, fontSize: 14 },
+  empty: { padding: 14 },
+  logRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 9 },
+  logText: { flex: 1, gap: 1 },
+  logTitle: { ...t.rowTitle, fontSize: 16 },
+  logRight: { alignItems: 'flex-end', gap: 1 },
 });

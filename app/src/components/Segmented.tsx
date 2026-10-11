@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -25,7 +25,9 @@ export function Segmented<K extends string>({ options, value, onChange }: Props<
   );
 
   const x = useSharedValue(0);
-  x.value = withTiming(index * segment, { duration: 250 });
+  useEffect(() => {
+    x.value = withTiming(index * segment, { duration: 250 });
+  }, [index, segment, x]);
   const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
 
   return (

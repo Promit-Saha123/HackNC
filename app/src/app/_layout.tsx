@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import AppTabs from '@/components/app-tabs';
+import { PrefsProvider } from '@/state/prefs';
 import { UserProvider } from '@/state/user';
 import { colors } from '@/theme/colors';
 import { fontAssets } from '@/theme/fonts';
@@ -29,8 +30,10 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={theme}>
       <UserProvider>
-        <StatusBar style="light" />
-        <AppTabs />
+        <PrefsProvider>
+          <StatusBar style="light" />
+          <AppTabs />
+        </PrefsProvider>
       </UserProvider>
     </ThemeProvider>
   );

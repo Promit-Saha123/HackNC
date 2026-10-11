@@ -17,19 +17,20 @@ type Props = {
 
 /** Navy card with a faint top-to-bottom sheen and a thin blue border. No blur: the background is already dark. */
 export function Card({ children, style, highlight, padding = spacing.md, onPress }: Props) {
-  const body = (
-    <View style={[styles.card, highlight && styles.highlight, style]}>
+  const content = (
+    <>
       <LinearGradient
         colors={highlight ? [colors.highlight, colors.highlight] : [colors.cardSheen, colors.card]}
         style={StyleSheet.absoluteFill}
       />
       <View style={{ padding }}>{children}</View>
-    </View>
+    </>
   );
-  if (!onPress) return body;
+  const base = [styles.card, highlight && styles.highlight, style];
+  if (!onPress) return <View style={base}>{content}</View>;
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
-      {body}
+    <Pressable onPress={onPress} style={({ pressed }) => [base, pressed && styles.pressed]}>
+      {content}
     </Pressable>
   );
 }
