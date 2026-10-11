@@ -60,12 +60,25 @@ class LeaderboardEntry(BaseModel):
     score: float
     streak_days: int
     badge: str | None = None
+    delta: float | None = None  # period=improved only: this week's average minus last week's
 
 
 class Leaderboard(BaseModel):
-    period: Literal["week", "all"]
+    period: Literal["week", "all", "improved"]
     squad: str | None = None
     entries: list[LeaderboardEntry]
+
+
+class SquadEntry(BaseModel):
+    rank: int
+    squad: str
+    score: float  # average member score
+    members: int
+
+
+class SquadLeaderboard(BaseModel):
+    period: Literal["week", "all"]
+    entries: list[SquadEntry]
 
 
 class ShortcutResult(BaseModel):

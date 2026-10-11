@@ -134,7 +134,8 @@
             "schema": {
               "enum": [
                 "week",
-                "all"
+                "all",
+                "improved"
               ],
               "type": "string",
               "default": "week",
@@ -165,6 +166,51 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Leaderboard"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/leaderboard/squads": {
+      "get": {
+        "summary": "Squads",
+        "description": "Squad vs squad: average member score.",
+        "operationId": "squads_leaderboard_squads_get",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "week",
+                "all"
+              ],
+              "type": "string",
+              "default": "week",
+              "title": "Period"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SquadLeaderboard"
                 }
               }
             }
@@ -347,7 +393,8 @@
             "type": "string",
             "enum": [
               "week",
-              "all"
+              "all",
+              "improved"
             ],
             "title": "Period"
           },
@@ -420,6 +467,17 @@
               }
             ],
             "title": "Badge"
+          },
+          "delta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta"
           }
         },
         "type": "object",
@@ -633,6 +691,59 @@
           "source"
         ],
         "title": "SleepNight"
+      },
+      "SquadEntry": {
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "squad": {
+            "type": "string",
+            "title": "Squad"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "members": {
+            "type": "integer",
+            "title": "Members"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rank",
+          "squad",
+          "score",
+          "members"
+        ],
+        "title": "SquadEntry"
+      },
+      "SquadLeaderboard": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "enum": [
+              "week",
+              "all"
+            ],
+            "title": "Period"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/SquadEntry"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "entries"
+        ],
+        "title": "SquadLeaderboard"
       },
       "User": {
         "properties": {
