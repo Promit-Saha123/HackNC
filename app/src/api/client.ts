@@ -1,7 +1,7 @@
 import { ApiError } from './errors';
 import { localIso } from './time';
 import { mockClient } from './mockClient';
-import type { Api, LoginResponse } from './types';
+import type { Api, LoginResponse, User } from './types';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
 export const USE_MOCKS = process.env.EXPO_PUBLIC_USE_MOCKS !== 'false';
@@ -68,6 +68,21 @@ const httpClient: Api = {
   prefs: () => get('/me/prefs'),
   savePrefs: (prefs) => request('PUT', '/me/prefs', prefs),
   logSleep: (bed, wake) => request('POST', '/me/sleep', { bed: asLocal(bed), wake: asLocal(wake) }),
+
+  mySquad: () => get('/me/squad'),
+  createSquad: (name) => request('POST', '/me/squad', { name }),
+  joinSquad: (code) => request('POST', '/me/squad/join', { code }),
+  leaveSquad: () => request('POST', '/me/squad/leave'),
+  squad: (code) => get(`/squads/${encodeURIComponent(code.trim())}`),
+
+  friendCard: (userId) => get(`/users/${userId}/card`),
+  syncStatus: () => get('/me/sync'),
+  ingestToken: () => request('POST', '/ingest/token'),
+  deleteMyData: async () => {
+    const me = await get<User>('/auth/me');
+    await request('DELETE', `/users/${me.id}/data`);
+    token = null; // the account no longer exists
+  },
 };
 
 /** Screens call `api.*`; flip EXPO_PUBLIC_USE_MOCKS to switch between fixtures and the backend. */
