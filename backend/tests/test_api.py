@@ -7,7 +7,7 @@ c = TestClient(app)
 
 def test_users_seeded():
     users = c.get("/users").json()
-    assert len(users) == 8 and all(u["is_demo"] for u in users)
+    assert len([u for u in users if u["is_demo"]]) == 8  # real users (non-demo) may also exist
 
 
 def test_overview():
