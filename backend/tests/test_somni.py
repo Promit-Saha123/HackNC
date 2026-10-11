@@ -128,3 +128,10 @@ def test_speak_returns_spoken_reply_audio(monkeypatch):
     audio = c.get(body["audio_url"])
     assert audio.status_code == 200 and audio.content == b"mp3"
     assert c.post("/ai/chat/6", json={"messages": msgs}).json()["audio_url"] is None  # typed chat: no audio
+
+
+def test_empty_transcript_reports_size_and_format(monkeypatch):
+    use_fake_voice(monkeypatch, text="")
+    m4a = b"\x00\x00\x00\x20ftypM4A " + bytes(4000)
+    r = c.post("/ai/transcribe/7", content=m4a, headers={"Content-Type": "audio/mp4"})
+    assert r.status_code == 422 and "3 KB of m4a audio" in r.json()["detail"]
