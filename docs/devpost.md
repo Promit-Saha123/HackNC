@@ -1,4 +1,4 @@
-# Sleep Squad: Devpost draft
+# Somnia: Devpost draft
 
 > Working draft for the Devpost submission (due **9:45 AM Sun Oct 11**). Copy each section into the matching Devpost field.
 > Items marked **[TODO]** need a real value before submitting. Everything else is checked against the code on `main`.
@@ -15,7 +15,7 @@
 
 ## Tagline (under 200 characters)
 
-All-nighters are campus culture. Sleep Squad makes sleep the thing your friends compete on: nightly scores, streaks, squads, and an AI coach you can talk to.
+All-nighters are campus culture. Somnia makes sleep the thing your friends compete on: nightly scores, streaks, squads, and an AI coach you can talk to.
 
 ---
 
@@ -23,13 +23,13 @@ All-nighters are campus culture. Sleep Squad makes sleep the thing your friends 
 
 On our campus, pulling an all-nighter is a flex. "I slept three hours" gets a laugh; "I slept eight" gets nothing. Sleep trackers already exist, but they're private, clinical and easy to ignore: a graph you check alone and forget.
 
-We asked what would actually make a college student go to bed. Not another lecture about health, but the same thing that gets people to the gym: **friends, competition and streaks**. So we built Sleep Squad. It turns sleep into a friendly game with your friends, and it keeps your actual sleep data private.
+We asked what would actually make a college student go to bed. Not another lecture about health, but the same thing that gets people to the gym: **friends, competition and streaks**. So we built Somnia. It turns sleep into a friendly game with your friends, and it keeps your actual sleep data private.
 
 ---
 
 ## What it does
 
-**Sleep Squad is an iPhone app where friends compete on sleep.**
+**Somnia is an iPhone app where friends compete on sleep.**
 
 - **A nightly score from 0 to 100.** Every night is scored on four things you can actually control:
   `score = 40 × duration + 30 × bedtime consistency + 20 × quality + 10 × streak`.
@@ -39,7 +39,7 @@ We asked what would actually make a college student go to bed. Not another lectu
 - **Streaks and badges.** A streak night is 7+ hours within an hour of your usual bedtime. Badges unlock at 3, 7, 14 and 30 nights (moon, cloud, rainbow, aurora).
 - **An AI morning briefing, read aloud.** Every morning, **Gemini** writes a short, personal recap of your night compared only with *your own* recent nights. **ElevenLabs** reads it to you with one tap, because nobody wants to read a paragraph with half-open eyes.
 - **A weekly AI insight.** The app finds your strongest pattern from the last 28 nights, like *"You sleep 2 h 33 min more on nights you're in bed by midnight,"* and Gemini turns it into one friendly tip.
-- **Somni, your AI sleep coach (type or talk).** Ask *"Why was my score so low?"* or *"How do I catch up to Chris this week?"* Somni answers only from your own Sleep Squad data. You can **talk to it**: ElevenLabs speech-to-text hears your question and Somni answers out loud.
+- **Somni, your AI sleep coach (type or talk).** Ask *"Why was my score so low?"* or *"How do I catch up to Chris this week?"* Somni answers only from your own Somnia data. You can **talk to it**: ElevenLabs speech-to-text hears your question and Somni answers out loud.
 - **Privacy by design.** Friends see your score and streak, never your bedtimes or health data unless you choose to share them. You can hide from leaderboards entirely, and you can delete your account and all its data.
 
 ---
@@ -98,7 +98,7 @@ We asked what would actually make a college student go to bed. Not another lectu
 
 ---
 
-## What's next for Sleep Squad
+## What's next for Somnia
 
 - Native HealthKit and background sync once we can build with Xcode.
 - Wind-down reminders at your bedtime minus 30 minutes, and a spoken wind-down from Somni so you can put the phone face down.
