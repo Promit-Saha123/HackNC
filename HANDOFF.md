@@ -37,6 +37,11 @@ v1 in progress. Last tag: v0 (scaffold).
 - P2 / P3 names are placeholders in the docs; the team knows who they are.
 
 ## How to run right now
+- **Production backend (Render, always on, permanent URL): https://sleep-squad-api.onrender.com** (service `sleep-squad-api`, Ohio, next to Tiger Cloud). Use it everywhere instead of the tunnel: in `app/.env` set `EXPO_PUBLIC_API_URL=https://sleep-squad-api.onrender.com` and `EXPO_PUBLIC_USE_MOCKS=false`; the iOS Shortcut's URL step is `https://sleep-squad-api.onrender.com/sleep/shortcut` (header `X-User-Id`).
+  - Deploys automatically from `main`. Its env vars (DATABASE_URL, AUTH_SECRET, GEMINI/ELEVENLABS keys, STRICT_PRIVACY) live in the Render dashboard (service -> Environment), never in git. Roll back from the Deploys tab.
+  - Free plan sleeps after 15 min idle (first request then takes 30-60 s), so a monitor should ping `/health` every 5 min. `GET /health?deep=true` also checks the database.
+  - After a demo, `python scripts/reset_demo.py` (from `backend/`) restores the demo friends without touching real accounts.
+  - The cloudflared tunnel below is now only a fallback.
 - Backend: `cd backend; .\.venv\Scripts\Activate.ps1; uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
 - App: `cd app; npx expo start --tunnel` (mocks on by default: `app/.env.example`)
 - Expo tunnel: `npx expo start --tunnel` (`@expo/ngrok` is now an app devDependency, so there is no install prompt). Backend tunnel URL (cloudflared, restarted 2026-10-11 02:22 UTC after a low-memory kill, changes every run): https://quebec-clone-translations-experience.trycloudflare.com. Promit's real user is id 9 (`X-User-Id: 9`); do not run `seed.py --reset` or it is wiped. `cloudflared` lives at `C:\Program Files (x86)\cloudflared\cloudflared.exe` (not on PATH in every shell).
