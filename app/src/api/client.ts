@@ -92,6 +92,8 @@ const httpClient: Api = {
     await request('DELETE', `/users/${me.id}/data`);
     token = null; // the account no longer exists
   },
+
+  chat: (userId, messages) => request('POST', `/ai/chat/${userId}`, { messages }),
 };
 
 /** Screens call `api.*`; flip EXPO_PUBLIC_USE_MOCKS to switch between fixtures and the backend. */

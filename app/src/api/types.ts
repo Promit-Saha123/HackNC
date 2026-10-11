@@ -24,6 +24,8 @@ export type SquadMember = Schemas['SquadMember'];
 export type FriendCard = Schemas['FriendCard'];
 export type SyncStatus = Schemas['SyncStatus'];
 export type IngestToken = Schemas['IngestToken'];
+export type ChatMessage = Schemas['ChatMessage'];
+export type ChatReply = Schemas['ChatReply'];
 
 export interface Api {
   users(): Promise<User[]>;
@@ -83,4 +85,8 @@ export interface Api {
    * behind an "are you sure?" confirmation.
    */
   deleteMyData(): Promise<void>;
+
+  // --- Somni, the in-app chatbot (Gemini), scoped to the user's own Sleep Squad data. ---
+  /** Send the conversation so far (oldest first, ending with the user's question). 429 if chatting too fast. */
+  chat(userId: number, messages: ChatMessage[]): Promise<ChatReply>;
 }
