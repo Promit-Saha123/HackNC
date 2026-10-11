@@ -1,20 +1,19 @@
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { api } from '@/api/client';
 import type { LeaderboardEntry, Period } from '@/api/types';
-import { GlassCard } from '@/components/GlassCard';
-import { SkyBackground } from '@/components/SkyBackground';
-import { BottomTabInset } from '@/constants/theme';
+import { Avatar } from '@/components/Avatar';
+import { Card, Divider } from '@/components/Card';
+import { Screen } from '@/components/Screen';
+import { Segmented } from '@/components/Segmented';
 import { useUser } from '@/state/user';
-import { BADGE_EMOJI } from '@/theme/badges';
-import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { colors, scoreBand } from '@/theme/colors';
+import { fontFamily, type as t } from '@/theme/fonts';
 
 const PERIODS: { key: Period; label: string }[] = [
-  { key: 'week', label: 'This week' },
-  { key: 'all', label: 'All time' },
+  { key: 'week', label: 'Weekly' },
+  { key: 'all', label: 'All-time' },
 ];
 
 export default function LeaderboardScreen() {
@@ -47,81 +46,47 @@ export default function LeaderboardScreen() {
   }, [period, tick]);
 
   return (
-    <SkyBackground>
-      <SafeAreaView style={styles.safe}>
-        <FlatList
-          data={entries}
-          keyExtractor={(e) => String(e.user_id)}
-          contentContainerStyle={styles.content}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                setTick((t) => t + 1);
-              }}
-            />
-          }
-          ListHeaderComponent={
-            <View style={styles.header}>
-              <Text style={styles.title}>Leaderboard</Text>
-              <View style={styles.toggle}>
-                {PERIODS.map((p) => (
-                  <Pressable
-                    key={p.key}
-                    onPress={() => setPeriod(p.key)}
-                    style={[styles.pill, p.key === period && styles.pillActive]}>
-                    <Text style={[styles.pillText, p.key === period && styles.pillTextActive]}>{p.label}</Text>
-                  </Pressable>
-                ))}
+    <Screen
+      title="Leaderboard"
+      subtitle={period === 'week' ? 'This week' : 'All time'}
+      refreshing={refreshing}
+      onRefresh={() => {
+        setRefreshing(true);
+        setTick((n) => n + 1);
+      }}>
+      <Segmented options={PERIODS} value={period} onChange={setPeriod} />
+      {error && <Text style={styles.error}>Can&apos;t reach the backend: {error}</Text>}
+
+      <Card padding={0}>
+        {entries.map((e, i) => {
+          const me = e.user_id === userId;
+          return (
+            <View key={e.user_id}>
+              {i > 0 && <Divider />}
+              <View style={[styles.row, me && styles.me]}>
+                <Text style={styles.rank}>{e.rank}</Text>
+                <Avatar name={e.name} size={40} glow={false} />
+                <View style={styles.who}>
+                  <Text style={t.rowTitle}>{me ? `${e.name} (you)` : e.name}</Text>
+                  <Text style={t.caption}>
+                    {e.streak_days} night streak{e.squad ? ` · ${e.squad}` : ''}
+                  </Text>
+                </View>
+                <Text style={[styles.score, { color: colors[scoreBand(e.score)] }]}>{Math.round(e.score)}</Text>
               </View>
-              {error && <Text style={styles.error}>Can&apos;t reach the backend: {error}</Text>}
             </View>
-          }
-          renderItem={({ item }) => (
-            <GlassCard style={[styles.row, item.user_id === userId && styles.me]}>
-              <Text style={styles.rank}>{item.rank}</Text>
-              <View style={styles.who}>
-                <Text style={styles.name}>
-                  {item.name}
-                  {item.user_id === userId ? ' (you)' : ''}
-                </Text>
-                <Text style={styles.sub}>
-                  {item.squad ?? 'No squad'} · {item.streak_days} night streak
-                </Text>
-              </View>
-              <Text style={styles.badge}>{item.badge ? BADGE_EMOJI[item.badge] : ''}</Text>
-              <Text style={styles.score}>{Math.round(item.score)}</Text>
-            </GlassCard>
-          )}
-        />
-      </SafeAreaView>
-    </SkyBackground>
+          );
+        })}
+      </Card>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  content: { padding: spacing.md, gap: spacing.sm, paddingBottom: BottomTabInset + spacing.xl },
-  header: { gap: spacing.sm, marginBottom: spacing.sm },
-  title: { fontSize: 28, fontWeight: '700', color: colors.text },
-  toggle: { flexDirection: 'row', gap: spacing.sm },
-  pill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-  },
-  pillActive: { backgroundColor: colors.green },
-  pillText: { color: colors.text, fontWeight: '600' },
-  pillTextActive: { color: '#fff' },
-  error: { color: '#B3261E' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  me: { borderWidth: 2, borderColor: colors.green },
-  rank: { width: 28, fontSize: 20, fontWeight: '800', color: colors.textSoft },
-  who: { flex: 1 },
-  name: { fontSize: 18, fontWeight: '700', color: colors.text },
-  sub: { color: colors.textSoft, fontSize: 13 },
-  badge: { fontSize: 22 },
-  score: { fontSize: 26, fontWeight: '800', color: colors.text },
+  error: { color: colors.danger, fontSize: 14 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
+  me: { backgroundColor: colors.highlight },
+  rank: { width: 22, fontFamily: fontFamily.semibold, fontSize: 16, color: colors.textSoft, textAlign: 'center' },
+  who: { flex: 1, gap: 2 },
+  score: { fontFamily: fontFamily.bold, fontSize: 20, fontVariant: ['tabular-nums'] },
 });

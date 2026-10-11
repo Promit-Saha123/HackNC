@@ -1,31 +1,28 @@
 import * as Linking from 'expo-linking';
 import { useEffect, useState } from 'react';
-import { AppState, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { BarChart } from 'react-native-gifted-charts';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppState, StyleSheet, Text, View } from 'react-native';
 
 import { USE_MOCKS, api } from '@/api/client';
 import type { Overview } from '@/api/types';
-import { GlassCard } from '@/components/GlassCard';
-import { SkyBackground } from '@/components/SkyBackground';
-import { UserPicker } from '@/components/UserPicker';
-import { BottomTabInset } from '@/constants/theme';
+import { Avatar } from '@/components/Avatar';
+import { Card, Divider } from '@/components/Card';
+import { GradientButton } from '@/components/GradientButton';
+import { IconCircle } from '@/components/IconCircle';
+import { Screen, Section } from '@/components/Screen';
+import { ScoreRing } from '@/components/ScoreRing';
 import { useUser } from '@/state/user';
-import { BADGE_EMOJI } from '@/theme/badges';
-import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { colors, scoreBand } from '@/theme/colors';
+import { type as t } from '@/theme/fonts';
+import { clock, hm, longDate, weekday } from '@/utils/format';
 
 const SHORTCUT_URL = 'shortcuts://run-shortcut?name=SleepSquad%20Sync';
-const CHART_WIDTH = Dimensions.get('window').width - spacing.md * 4 - 40;
-
-const hm = (min: number) => `${Math.floor(min / 60)}h ${min % 60}m`;
-const weekday = (day: string) => new Date(`${day}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short' });
 
 export default function HomeScreen() {
   const { userId } = useUser();
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [refreshTick, setRefreshTick] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     let live = true;
@@ -39,109 +36,112 @@ export default function HomeScreen() {
       })
       .catch((e: Error) => {
         if (live) setError(e.message);
+      })
+      .finally(() => {
+        if (live) setRefreshing(false);
       });
     return () => {
       live = false;
     };
-  }, [userId, refreshTick]);
+  }, [userId, tick]);
 
   // Coming back from the Shortcut (or any backgrounding) refetches.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') setRefreshTick((t) => t + 1);
+      if (s === 'active') setTick((n) => n + 1);
     });
     return () => sub.remove();
   }, []);
 
   const night = overview?.last_night;
-  const score = overview?.score;
+  const score = overview?.score?.score ?? null;
+  // Newest first, skipping nothing: the first row is last night.
+  const log = [...(overview?.history ?? [])].reverse().slice(0, 3);
 
   return (
-    <SkyBackground>
-      <SafeAreaView style={styles.safe}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <UserPicker />
-          <Text style={styles.title}>
-            {overview ? `Good morning, ${overview.user.name}` : 'Sleep Squad'}
-          </Text>
-          {USE_MOCKS && <Text style={styles.hint}>Showing mock data</Text>}
-          {error && <Text style={styles.error}>Can&apos;t reach the backend: {error}</Text>}
+    <Screen
+      title="Welcome"
+      subtitle={longDate()}
+      right={<Avatar name={overview?.user.name ?? '?'} />}
+      refreshing={refreshing}
+      onRefresh={() => {
+        setRefreshing(true);
+        setTick((n) => n + 1);
+      }}>
+      {error && <Text style={styles.error}>Can&apos;t reach the backend: {error}</Text>}
 
-          <GlassCard style={styles.card}>
-            <Text style={styles.label}>Last night</Text>
-            {score && night ? (
-              <>
-                <Text style={styles.score}>
-                  {Math.round(score.score)}
-                  <Text style={styles.outOf}> / 100</Text>
-                </Text>
-                <View style={styles.stats}>
-                  <Text style={styles.stat}>🛏 {hm(night.duration_min)}</Text>
-                  <Text style={styles.stat}>⚡ {Math.round(night.efficiency * 100)}%</Text>
-                  <Text style={styles.stat}>
-                    {overview?.badge ? BADGE_EMOJI[overview.badge] : '🔥'} {overview?.streak_days ?? 0} night streak
-                  </Text>
+      <ScoreRing score={score} inner={night?.efficiency} />
+      {score == null && !error && overview && <Text style={[t.body, styles.center]}>No sleep synced yet.</Text>}
+
+      <Section title="Quick recap">
+        <Card padding={0}>
+          <View style={styles.recap}>
+            <View style={styles.recapCell}>
+              <IconCircle name="moon.fill" />
+              <View>
+                <Text style={t.caption}>Time sleep</Text>
+                <Text style={t.rowTitle}>{night ? hm(night.duration_min) : '--'}</Text>
+              </View>
+            </View>
+            <View style={styles.vline} />
+            <View style={styles.recapCell}>
+              <IconCircle name="chart.pie.fill" />
+              <View>
+                <Text style={t.caption}>Streak</Text>
+                <Text style={t.rowTitle}>{overview ? `${overview.streak_days} nights` : '--'}</Text>
+              </View>
+            </View>
+          </View>
+        </Card>
+      </Section>
+
+      <Section title="Sleep log">
+        <Card padding={0}>
+          {log.length === 0 && <Text style={[t.body, styles.empty]}>Nothing logged yet.</Text>}
+          {log.map((h, i) => {
+            const isLast = night && h.day === night.day;
+            return (
+              <View key={h.day}>
+                {i > 0 && <Divider />}
+                <View style={styles.logRow}>
+                  <View style={styles.logText}>
+                    <Text style={t.rowTitle}>
+                      {i === 0 ? 'Last sleep' : 'Sleep'} ({weekday(h.day)})
+                    </Text>
+                    {isLast && night && (
+                      <Text style={t.body}>
+                        {clock(night.bedtime)} - {clock(night.wake_time)}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={styles.logRight}>
+                    {isLast && night && <Text style={t.rowTitle}>{hm(night.duration_min)}</Text>}
+                    <Text style={[t.body, { color: colors[scoreBand(h.score)] }]}>{Math.round(h.score)}%</Text>
+                  </View>
                 </View>
-              </>
-            ) : (
-              <Text style={styles.stat}>No sleep synced yet.</Text>
-            )}
-          </GlassCard>
+              </View>
+            );
+          })}
+        </Card>
+      </Section>
 
-          <GlassCard style={styles.card}>
-            <Text style={styles.label}>Last 7 nights</Text>
-            <BarChart
-              data={(overview?.history ?? []).map((h) => ({
-                value: h.score,
-                label: weekday(h.day),
-                frontColor: colors.green,
-              }))}
-              width={CHART_WIDTH}
-              height={140}
-              maxValue={100}
-              noOfSections={4}
-              barWidth={22}
-              spacing={14}
-              initialSpacing={8}
-              barBorderRadius={8}
-              hideRules
-              yAxisThickness={0}
-              xAxisThickness={0}
-              yAxisTextStyle={styles.axis}
-              xAxisLabelTextStyle={styles.axis}
-              isAnimated
-            />
-          </GlassCard>
-
-          <Pressable
-            style={styles.sync}
-            onPress={() => Linking.openURL(SHORTCUT_URL).catch(() => setError('Could not open Shortcuts'))}>
-            <Text style={styles.syncText}>Sync from Apple Watch</Text>
-          </Pressable>
-        </ScrollView>
-      </SafeAreaView>
-    </SkyBackground>
+      <GradientButton
+        label="Sync from Apple Watch"
+        onPress={() => Linking.openURL(SHORTCUT_URL).catch(() => setError('Could not open Shortcuts'))}
+      />
+      {USE_MOCKS && <Text style={[t.caption, styles.center]}>Showing mock data</Text>}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  content: { padding: spacing.md, gap: spacing.md, paddingBottom: BottomTabInset + spacing.xl },
-  title: { fontSize: 28, fontWeight: '700', color: colors.text },
-  hint: { color: colors.textSoft },
-  error: { color: '#B3261E' },
-  card: { gap: spacing.sm },
-  label: { color: colors.textSoft, fontWeight: '600', textTransform: 'uppercase', fontSize: 12 },
-  score: { fontSize: 72, fontWeight: '800', color: colors.text },
-  outOf: { fontSize: 22, fontWeight: '500', color: colors.textSoft },
-  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  stat: { color: colors.text, fontSize: 16 },
-  axis: { color: colors.textSoft, fontSize: 11 },
-  sync: {
-    backgroundColor: colors.green,
-    paddingVertical: spacing.md,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-  },
-  syncText: { color: '#fff', fontWeight: '700', fontSize: 17 },
+  center: { textAlign: 'center' },
+  error: { color: colors.danger, fontSize: 14 },
+  recap: { flexDirection: 'row', alignItems: 'center' },
+  recapCell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
+  vline: { width: 1, alignSelf: 'stretch', backgroundColor: colors.divider },
+  empty: { padding: 16 },
+  logRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
+  logText: { flex: 1, gap: 2 },
+  logRight: { alignItems: 'flex-end', gap: 2 },
 });

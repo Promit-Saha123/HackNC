@@ -1,32 +1,50 @@
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useColorScheme } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { Tabs } from 'expo-router';
+import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { StyleSheet } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { colors } from '@/theme/colors';
+import { type as t } from '@/theme/fonts';
+
+const TABS: { name: string; title: string; icon: SFSymbol }[] = [
+  { name: 'index', title: 'Home', icon: 'moon.fill' },
+  { name: 'leaderboard', title: 'Leaderboard', icon: 'trophy.fill' },
+  { name: 'trends', title: 'Trends', icon: 'chart.bar.fill' },
+  { name: 'achievements', title: 'Achievements', icon: 'star.fill' },
+  { name: 'profile', title: 'Profile', icon: 'person.fill' },
+];
 
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
-
   return (
-    <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
-      <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        sceneStyle: { backgroundColor: colors.bg },
+        tabBarActiveTintColor: colors.tabActive,
+        tabBarInactiveTintColor: colors.tabInactive,
+        tabBarLabelStyle: t.tabLabel,
+        tabBarStyle: styles.bar,
+      }}
+      screenListeners={{ tabPress: () => Haptics.selectionAsync() }}>
+      {TABS.map((tab) => (
+        <Tabs.Screen
+          key={tab.name}
+          name={tab.name}
+          options={{
+            title: tab.title,
+            tabBarIcon: ({ color }) => <SymbolView name={tab.icon} size={24} tintColor={color} />,
+          }}
         />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="leaderboard">
-        <NativeTabs.Trigger.Label>Leaderboard</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-    </NativeTabs>
+      ))}
+    </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  bar: {
+    backgroundColor: colors.tabBar,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    elevation: 0,
+  },
+});
