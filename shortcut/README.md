@@ -9,7 +9,7 @@ Expo Go can't use HealthKit, so this Shortcut is how real Apple Watch sleep reac
    - Set the Start Date / End Date variables to format **ISO 8601** (tap the variable -> Date Format -> ISO 8601).
 3. **Combine Text** with **New Lines** (the output of the Repeat).
 4. **Get Contents of URL**: `<tunnel URL>/sleep/shortcut`
-   - Method **POST**, header `X-Ingest-Token` = your token (log in, then `POST /ingest/token` with `Authorization: Bearer <login token>`; demo profiles can still send `X-User-Id` instead), Request Body = **File**, using the combined text.
+   - Method **POST**, header `X-User-Id` = your user id (see `GET /users`) (optionally `X-Ingest-Token` instead: log in, then `POST /ingest/token` with `Authorization: Bearer <login token>`), Request Body = **File**, using the combined text.
 5. **Show Result** (the backend replies with how many nights it found).
 
 ## Notes
@@ -17,4 +17,4 @@ Expo Go can't use HealthKit, so this Shortcut is how real Apple Watch sleep reac
 - iOS asks for Health permission on first run. Allow **Sleep** only; no other Health types are read.
 - The tunnel URL changes every run of `cloudflared`: update step 4 each time (see `HANDOFF.md`).
 - After it works, share it as an iCloud link so teammates can install it.
-- Test without a phone (demo profile id 1; real users send `X-Ingest-Token`): `curl.exe -X POST <url>/sleep/shortcut -H "X-User-Id: 1" -H "Content-Type: text/plain" --data-binary "2026-10-09T23:40:00-04:00|2026-10-10T07:20:00-04:00|Core"`
+- Test without a phone (user id 1): `curl.exe -X POST <url>/sleep/shortcut -H "X-User-Id: 1" -H "Content-Type: text/plain" --data-binary "2026-10-09T23:40:00-04:00|2026-10-10T07:20:00-04:00|Core"`
