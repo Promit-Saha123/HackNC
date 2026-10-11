@@ -691,6 +691,17 @@
               }
             ],
             "title": "Wake Time"
+          },
+          "duration_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Min"
           }
         },
         "type": "object",
