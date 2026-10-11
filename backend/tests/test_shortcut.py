@@ -37,8 +37,8 @@ def test_ingest_token(monkeypatch):
     monkeypatch.setattr(sleep, "store", store)
     c = TestClient(app)
     post = lambda h: c.post("/sleep/shortcut", content=SAMPLE, headers=h).status_code  # noqa: E731
-    assert post({"X-User-Id": "1"}) == 401  # real users need the token
-    assert post({"X-User-Id": "2"}) == 200  # demo profiles still work bare
+    assert post({"X-User-Id": "1"}) == 200  # plain X-User-Id works for real users too (team decision: no token required)
+    assert post({"X-User-Id": "2"}) == 200  # and for demo profiles
     assert post({"X-Ingest-Token": make_ingest_token(1)}) == 200
     assert post({"X-Ingest-Token": make_ingest_token(1)[:-2] + "00"}) == 401  # forged
     assert post({}) == 401
