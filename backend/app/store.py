@@ -1,10 +1,12 @@
-"""In-memory demo store (v1): 8 seeded friends x 60 nights, scored on load.
-Mirrors what the Tiger Cloud queries will return; swap these methods for SQL once DATABASE_URL is wired."""
+"""Two stores with the same methods: Store (in-memory, 8 seeded friends x 60 nights, used when DATABASE_URL
+is unset and by scripts/seed.py) and SqlStore (Tiger Cloud). `store` at the bottom picks one."""
 import random
 from datetime import date, datetime, time, timedelta
 from statistics import mean
 
-from .models import Leaderboard, LeaderboardEntry, NightScore, Overview, SleepNight, User
+from .config import settings
+from .db import get_pool
+from .models import Leaderboard, LeaderboardEntry, NightScore, Overview, ScoreBreakdown, SleepNight, User
 from .scoring import badge_for, compute_scores
 
 SEED_DAYS = 60
@@ -75,6 +77,9 @@ class Store:
     def list_users(self) -> list[User]:
         return list(self.users.values())
 
+    def has_user(self, uid: int) -> bool:
+        return uid in self.users
+
     def add_nights(self, uid: int, new: list[SleepNight]) -> None:
         """Merge by wake date (new replaces old), then rescore the user's history."""
         by_day = {n.day: n for n in self.nights[uid]}
@@ -121,4 +126,102 @@ class Store:
         return Leaderboard(period=period, squad=squad, entries=entries)
 
 
-store = Store()
+def _naive(row: dict) -> dict:
+    """Session is UTC and we store wall-clock times, so dropping tzinfo restores the device-local time."""
+    return {k: v.replace(tzinfo=None) if isinstance(v, datetime) else v for k, v in row.items()}
+
+
+NIGHT_COLS = (
+    "time AS bedtime, end_time AS wake_time, duration_min, efficiency, deep_min, rem_min, light_min, awake_min, source"
+)
+SCORE_COLS = "score, duration_pts, consistency_pts, quality_pts, streak_pts, streak_days"
+
+
+def _night(row: dict) -> SleepNight:
+    row = _naive(row)
+    return SleepNight(day=row["wake_time"].date(), **row)
+
+
+class SqlStore:
+    """Tiger Cloud backed store; same methods and response shapes as Store."""
+
+    def list_users(self) -> list[User]:
+        with get_pool().connection() as c:
+            return [User(**r) for r in c.execute("SELECT id, name, squad, source, is_demo FROM users ORDER BY id")]
+
+    def has_user(self, uid: int) -> bool:
+        with get_pool().connection() as c:
+            return c.execute("SELECT 1 FROM users WHERE id = %s", (uid,)).fetchone() is not None
+
+    def add_nights(self, uid: int, new: list[SleepNight]) -> None:
+        """Replace by wake date, then rescore the user's whole history (one transaction)."""
+        with get_pool().connection() as c:
+            for n in new:
+                c.execute("DELETE FROM sleep_sessions WHERE user_id = %s AND end_time::date = %s", (uid, n.day))
+                c.execute(
+                    "INSERT INTO sleep_sessions (time, user_id, end_time, duration_min, efficiency, deep_min,"
+                    " rem_min, light_min, awake_min, source) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (n.bedtime, uid, n.wake_time, n.duration_min, n.efficiency, n.deep_min, n.rem_min,
+                     n.light_min, n.awake_min, n.source),
+                )
+            nights = [_night(r) for r in c.execute(
+                f"SELECT {NIGHT_COLS} FROM sleep_sessions WHERE user_id = %s ORDER BY end_time", (uid,))]
+            c.execute("DELETE FROM daily_scores WHERE user_id = %s", (uid,))
+            for n, s in zip(nights, compute_scores(nights)):
+                c.execute(
+                    "INSERT INTO daily_scores (time, user_id, score, duration_pts, consistency_pts, quality_pts,"
+                    " streak_pts, streak_days) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (datetime.combine(n.day, time(8)), uid, s.score, s.duration_pts, s.consistency_pts,
+                     s.quality_pts, s.streak_pts, s.streak_days),
+                )
+            c.execute("UPDATE users SET is_demo = false, source = 'shortcut' WHERE id = %s", (uid,))
+
+    def overview(self, uid: int) -> Overview | None:
+        with get_pool().connection() as c:
+            u = c.execute("SELECT id, name, squad, source, is_demo FROM users WHERE id = %s", (uid,)).fetchone()
+            if u is None:
+                return None
+            user = User(**u)
+            last = c.execute(
+                f"SELECT {NIGHT_COLS} FROM sleep_sessions WHERE user_id = %s ORDER BY end_time DESC LIMIT 1", (uid,)
+            ).fetchone()
+            if last is None:
+                return Overview(user=user)
+            recent = c.execute(
+                f"SELECT time::date AS day, {SCORE_COLS} FROM daily_scores WHERE user_id = %s"
+                " ORDER BY time DESC LIMIT 7", (uid,)
+            ).fetchall()[::-1]  # oldest first
+        score = ScoreBreakdown(**{k: recent[-1][k] for k in ScoreBreakdown.model_fields})
+        return Overview(
+            user=user,
+            last_night=_night(last),
+            score=score,
+            history=[NightScore(day=r["day"], score=r["score"]) for r in recent],
+            streak_days=score.streak_days,
+            badge=badge_for(score.streak_days),
+        )
+
+    def leaderboard(self, period: str, squad: str | None) -> Leaderboard:
+        today = date.today()
+        since = today - timedelta(days=today.weekday()) if period == "week" else date(1970, 1, 1)
+        with get_pool().connection() as c:
+            rows = c.execute(
+                "SELECT u.id, u.name, u.squad, avg(d.score)::float AS score,"
+                " (SELECT streak_days FROM daily_scores WHERE user_id = u.id ORDER BY time DESC LIMIT 1) AS streak"
+                " FROM users u JOIN daily_scores d ON d.user_id = u.id"
+                " WHERE d.time >= %s AND (%s::text IS NULL OR lower(u.squad) = lower(%s))"
+                " GROUP BY u.id ORDER BY score DESC, u.name",
+                (since, squad, squad),
+            ).fetchall()
+        entries = [
+            LeaderboardEntry(
+                rank=i, user_id=r["id"], name=r["name"], squad=r["squad"], score=round(r["score"], 1),
+                streak_days=r["streak"], badge=badge_for(r["streak"]),
+            )
+            for i, r in enumerate(rows, start=1)
+        ]
+        return Leaderboard(period=period, squad=squad, entries=entries)
+
+
+# No DATABASE_URL (fresh clone, CI) -> in-memory demo data.
+store = SqlStore() if settings.database_url else Store()
