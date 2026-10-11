@@ -16,7 +16,7 @@ v1 in progress. Last tag: v0 (scaffold).
 - 2026-10-10 Promit (branches `p1/me-endpoints`, `p1/ingest-token`, stacked, PRs pending): `/me/prefs` (GET/PUT goals + privacy toggles; hidden users leave all leaderboards), `POST /me/sleep` (manual log; send LOCAL times with no UTC offset), `/me/squad` (GET, POST create, POST join; codes WOLF23, OWLS42, RATS17), `POST /ingest/token` + `X-Ingest-Token` on `/sleep/shortcut` (real users need it; demo profiles may still send `X-User-Id`). DB migrations `db/003_auth.sql`, `db/004_profile.sql` already applied to Tiger Cloud.
 
 ## In progress
-- P1 Promit, branch `backend`: next is the iOS Shortcut + cloudflared tunnel test.
+- P1 Promit, branch `backend`: next is the iOS Shortcut test against the Render API.
 - P3 Pranav: PR #5 (`p3/design-system`), main merged in; needs a phone check, then merge.
 - P2 Sharvil (`p2/gemini-briefing`, merged in #2): Gemini briefing in `backend/app/integrations/gemini.py` (gemini-3.8-flash, structured JSON, own-baseline only, retry on gemini-3.5-flash, template fallback, cached per night) + tests (`tests/test_gemini.py`, `tests/conftest.py` blocks live Gemini in tests). App: `src/components/BriefingCard.tsx` on Home (`src/app/index.tsx`, P3 sign-off needed), mock briefing in `src/api/mockClient.ts`.
 - P2 Sharvil (`p2/weekly-insight`, merged in #9): `GET /ai/insight/{user_id}` -> `Insight`; `integrations/insight.py` finds the strongest pattern in the last 28 nights in code (bedtime-before-midnight, weekend drift, week trend, else steady), Gemini only phrases it, template fallback. Gemini calls fall through 3.8 -> 3.5 -> 3.5-lite -> 3.7 flash, skipping models that hit the daily quota. App: `api.insight()`, `api.squadLeaderboard()`, `period: 'improved'` (no insight UI yet; P3 can place it).
@@ -42,14 +42,13 @@ v1 in progress. Last tag: v0 (scaffold).
 - P2 / P3 names are placeholders in the docs; the team knows who they are.
 
 ## How to run right now
-- **Production backend (Render, always on, permanent URL): https://sleep-squad-api.onrender.com** (service `sleep-squad-api`, Ohio, next to Tiger Cloud). Use it everywhere instead of the tunnel: in `app/.env` set `EXPO_PUBLIC_API_URL=https://sleep-squad-api.onrender.com` and `EXPO_PUBLIC_USE_MOCKS=false`; the iOS Shortcut's URL step is `https://sleep-squad-api.onrender.com/sleep/shortcut` (header `X-User-Id`).
+- **Production backend (Render, always on, permanent URL): https://sleep-squad-api.onrender.com** (service `sleep-squad-api`, Ohio, next to Tiger Cloud). Use it everywhere: in `app/.env` set `EXPO_PUBLIC_API_URL=https://sleep-squad-api.onrender.com` and `EXPO_PUBLIC_USE_MOCKS=false`; the iOS Shortcut's URL step is `https://sleep-squad-api.onrender.com/sleep/shortcut` (header `X-User-Id`).
   - Deploys automatically from `main`. Its env vars (DATABASE_URL, AUTH_SECRET, GEMINI/ELEVENLABS keys, STRICT_PRIVACY) live in the Render dashboard (service -> Environment), never in git. Roll back from the Deploys tab.
   - Free plan sleeps after 15 min idle (first request then takes 30-60 s), so a monitor should ping `/health` every 5 min. `GET /health?deep=true` also checks the database.
   - After a demo, `python scripts/reset_demo.py` (from `backend/`) restores the demo friends without touching real accounts.
-  - The cloudflared tunnel below is now only a fallback.
 - Backend: `cd backend; .\.venv\Scripts\Activate.ps1; uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
-- App: `cd app; npx expo start --tunnel` (mocks on by default: `app/.env.example`)
-- Expo tunnel: `npx expo start --tunnel` (`@expo/ngrok` is now an app devDependency, so there is no install prompt). Backend tunnel URL (cloudflared, restarted 2026-10-11 02:22 UTC after a low-memory kill, changes every run): https://quebec-clone-translations-experience.trycloudflare.com. Promit's real user is id 9 (`X-User-Id: 9`); do not run `seed.py --reset` or it is wiped. `cloudflared` lives at `C:\Program Files (x86)\cloudflared\cloudflared.exe` (not on PATH in every shell).
+- App: `cd app; npx expo start --tunnel` (`app/.env.example` points at the live API with mocks off)
+- Expo tunnel: `npx expo start --tunnel` (`@expo/ngrok` is now an app devDependency, so there is no install prompt). Promit's real user is id 9 (`X-User-Id: 9`); do not run `seed.py --reset` or it is wiped.
 
 ## Known bugs / notes
 - `npx expo lint` and `npm run typecheck` run. Lint has 1 error in the template file `app/src/hooks/use-color-scheme.web.ts` (setState in effect, web only); not ours, fix when touching web.
