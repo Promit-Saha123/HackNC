@@ -15,7 +15,13 @@ def get_pool() -> ConnectionPool:
         _pool = ConnectionPool(
             settings.database_url,
             min_size=1,
-            max_size=5,
-            kwargs={"row_factory": dict_row, "options": "-c timezone=UTC"},
+            max_size=settings.db_pool_max,
+            timeout=10,  # a request waits at most 10 s for a free connection, then fails fast instead of piling up
+            open=True,
+            # statement_timeout stops one runaway query from holding a connection for ever
+            kwargs={
+                "row_factory": dict_row,
+                "options": f"-c timezone=UTC -c statement_timeout={settings.db_statement_timeout_ms}",
+            },
         )
     return _pool

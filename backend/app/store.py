@@ -7,11 +7,17 @@ from statistics import mean
 
 from .config import settings
 from .db import get_pool
+from psycopg import errors as pg_errors
+
 from .models import (
-    HistoryNight, Leaderboard, LeaderboardEntry, NightScore, Overview, Prefs, ScoreBreakdown, SleepNight, SquadInfo,
-    SyncStatus, User,
+    HistoryNight, Leaderboard, LeaderboardEntry, NightScore, Overview, Prefs, Profile, ProfileStats, ScoreBreakdown,
+    SleepNight, SquadEntry, SquadInfo, SquadMember, SyncStatus, User,
 )
 from .scoring import badge_for, compute_scores
+
+class NameTaken(Exception):
+    """Another account already uses that name (names are unique, ignoring case)."""
+
 
 SEED_DAYS = 60
 DEMO_SQUAD_CODES = {"Wolfpack": "WOLF23", "Night Owls": "OWLS42", "Library Rats": "RATS17"}  # also in db/004_profile.sql
@@ -83,27 +89,74 @@ class Store:
         self.hashes: dict[int, str] = {}
         self.prefs: dict[int, Prefs] = {}
         self.synced: dict[int, datetime] = {}  # last Shortcut sync per user
+        self.extra: dict[int, dict] = {}  # avatar / bio / created per user
         self.squads: dict[str, str] = dict(DEMO_SQUAD_CODES)  # name -> invite code
         for uid, (name, squad, bed_h, sleep_h, kind) in enumerate(PROFILES, start=1):
             self.users[uid] = User(id=uid, name=name, squad=squad, source="seed", is_demo=True)
             self.nights[uid] = _gen_nights(uid, bed_h, sleep_h, kind, today)
             self.scores[uid] = compute_scores(self.nights[uid])
 
-    def list_users(self) -> list[User]:
-        return list(self.users.values())
+    def list_users(self, limit: int = 200, offset: int = 0, demo_only: bool = False) -> list[User]:
+        users = [u for u in self.users.values() if u.is_demo or not demo_only]
+        return users[offset : offset + limit]
+
+    def get_user(self, uid: int) -> User | None:
+        return self.users.get(uid)
 
     def has_user(self, uid: int) -> bool:
         return uid in self.users
 
     def delete_user(self, uid: int) -> None:
         """Remove the user and all their rows."""
-        for table in (self.users, self.nights, self.scores, self.hashes, self.prefs, self.synced):
+        for table in (self.users, self.nights, self.scores, self.hashes, self.prefs, self.synced, self.extra):
             table.pop(uid, None)
 
     def login_info(self, name: str) -> tuple[User, str | None] | None:
         """(user, password_hash) for a case-insensitive name, or None."""
         u = next((u for u in self.users.values() if u.name.lower() == name.strip().lower()), None)
         return (u, self.hashes.get(u.id)) if u else None
+
+    def credentials(self, uid: int) -> tuple[str | None, bool] | None:
+        """(password_hash, is_demo) for the password-change check, or None for an unknown user."""
+        u = self.users.get(uid)
+        return (self.hashes.get(uid), u.is_demo) if u else None
+
+    def create_user(self, name: str, hashed: str) -> User | None:
+        """A new real account. None if the name is taken."""
+        if any(u.name.lower() == name.lower() for u in self.users.values()):
+            return None
+        uid = max(self.users, default=0) + 1
+        self.users[uid] = User(id=uid, name=name, squad=None, source=None, is_demo=False)
+        self.nights[uid], self.scores[uid], self.hashes[uid] = [], [], hashed
+        self.extra[uid] = {"created": datetime.now()}
+        return self.users[uid]
+
+    def get_profile(self, uid: int) -> Profile | None:
+        u = self.users.get(uid)
+        if u is None:
+            return None
+        ex, scores = self.extra.get(uid, {}), self.scores.get(uid, [])
+        last30 = [s.score for s in scores[-30:]]
+        stats = ProfileStats(
+            nights=len(self.nights.get(uid, [])), best_streak=max((s.streak_days for s in scores), default=0),
+            avg_score=round(mean(last30), 1) if last30 else None,
+        )
+        return Profile(
+            id=uid, name=u.name, avatar=ex.get("avatar"), bio=ex.get("bio"), squad=u.squad, is_demo=u.is_demo,
+            member_since=ex.get("created"), stats=stats,
+        )
+
+    def update_profile(self, uid: int, name: str | None, avatar: str | None, bio: str | None) -> Profile:
+        """None = leave as is, "" = clear (avatar/bio). Raises NameTaken on a duplicate name."""
+        if name is not None:
+            if any(u.id != uid and u.name.lower() == name.lower() for u in self.users.values()):
+                raise NameTaken(name)
+            self.users[uid] = self.users[uid].model_copy(update={"name": name})
+        ex = self.extra.setdefault(uid, {})
+        for key, value in (("avatar", avatar), ("bio", bio)):
+            if value is not None:
+                ex[key] = value or None
+        return self.get_profile(uid)
 
     def set_password(self, uid: int, hashed: str) -> None:
         self.hashes[uid] = hashed
@@ -207,8 +260,8 @@ class Store:
                 out[uid] = mean(vals)
         return out
 
-    def leaderboard(self, period: str, squad: str | None, before: date = date.max) -> Leaderboard:
-        """`before` drops nights on/after that wake date (rank as of an earlier day)."""
+    def leaderboard(self, period: str, squad: str | None, before: date = date.max, limit: int = 100) -> Leaderboard:
+        """`before` drops nights on/after that wake date (rank as of an earlier day). Top `limit` entries only."""
         today = date.today()
         since = today - timedelta(days=today.weekday()) if period == "week" else date.min  # week resets Monday
         rows = []
@@ -224,9 +277,50 @@ class Store:
             LeaderboardEntry(
                 rank=i, user_id=u.id, name=u.name, squad=u.squad, score=sc, streak_days=st, badge=badge_for(st)
             )
-            for i, (sc, u, st) in enumerate(rows, start=1)
+            for i, (sc, u, st) in enumerate(rows[:limit], start=1)
         ]
         return Leaderboard(period=period, squad=squad, entries=entries)
+
+    def _streak(self, uid: int) -> int:
+        return self.scores[uid][-1].streak_days if self.scores.get(uid) else 0
+
+    def improved(self, monday: date, squad: str | None, limit: int = 100) -> list[LeaderboardEntry]:
+        """Most improved: this week's average minus last week's. Only improvers, biggest gain first."""
+        now, before = self.weekly_avgs(monday), self.weekly_avgs(monday - timedelta(days=7))
+        rows = []
+        for uid, s in now.items():
+            u = self.users[uid]
+            if uid not in before or round(s - before[uid], 1) <= 0 or not self.prefs.get(uid, Prefs()).show_on_board:
+                continue  # a gain that rounds to 0.0 isn't an improvement worth listing
+            if squad and (u.squad or "").lower() != squad.lower():
+                continue
+            rows.append((s - before[uid], s, u))
+        rows.sort(key=lambda r: (-r[0], r[2].name))
+        return [
+            LeaderboardEntry(
+                rank=i, user_id=u.id, name=u.name, squad=u.squad, score=round(s, 1), streak_days=self._streak(u.id),
+                badge=badge_for(self._streak(u.id)), delta=round(d, 1),
+            )
+            for i, (d, s, u) in enumerate(rows[:limit], start=1)
+        ]
+
+    def squad_board(self, period: str, limit: int = 50) -> list[SquadEntry]:
+        """Squad vs squad: average member score, best first."""
+        groups: dict[str, list[float]] = {}
+        for e in self.leaderboard(period, None, limit=10**9).entries:
+            if e.squad:
+                groups.setdefault(e.squad, []).append(e.score)
+        rows = sorted(((n, mean(v), len(v)) for n, v in groups.items()), key=lambda r: (-r[1], r[0]))
+        return [SquadEntry(rank=i, squad=n, score=round(s, 1), members=m) for i, (n, s, m) in enumerate(rows[:limit], start=1)]
+
+    def squad_members(self, name: str, limit: int = 100) -> list[SquadMember]:
+        """Members who show on the leaderboard (score-level info only)."""
+        out = []
+        for u in self.users.values():
+            if (u.squad or "").lower() == name.lower() and self.prefs.get(u.id, Prefs()).show_on_board:
+                st = self._streak(u.id)
+                out.append(SquadMember(user_id=u.id, name=u.name, streak_days=st, badge=badge_for(st)))
+        return out[:limit]
 
 
 def _naive(row: dict) -> dict:
@@ -248,9 +342,18 @@ def _night(row: dict) -> SleepNight:
 class SqlStore:
     """Tiger Cloud backed store; same methods and response shapes as Store."""
 
-    def list_users(self) -> list[User]:
+    def list_users(self, limit: int = 200, offset: int = 0, demo_only: bool = False) -> list[User]:
         with get_pool().connection() as c:
-            return [User(**r) for r in c.execute("SELECT id, name, squad, source, is_demo FROM users ORDER BY id")]
+            rows = c.execute(
+                "SELECT id, name, squad, source, is_demo FROM users WHERE (NOT %s OR is_demo)"
+                " ORDER BY id LIMIT %s OFFSET %s", (demo_only, limit, offset),
+            )
+            return [User(**r) for r in rows]
+
+    def get_user(self, uid: int) -> User | None:
+        with get_pool().connection() as c:
+            r = c.execute("SELECT id, name, squad, source, is_demo FROM users WHERE id = %s", (uid,)).fetchone()
+        return User(**r) if r else None
 
     def has_user(self, uid: int) -> bool:
         with get_pool().connection() as c:
@@ -274,6 +377,61 @@ class SqlStore:
     def set_password(self, uid: int, hashed: str) -> None:
         with get_pool().connection() as c:
             c.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hashed, uid))
+
+    def credentials(self, uid: int) -> tuple[str | None, bool] | None:
+        """(password_hash, is_demo) for the password-change check, or None for an unknown user."""
+        with get_pool().connection() as c:
+            r = c.execute("SELECT password_hash, is_demo FROM users WHERE id = %s", (uid,)).fetchone()
+        return (r["password_hash"], r["is_demo"]) if r else None
+
+    def create_user(self, name: str, hashed: str) -> User | None:
+        """A new real account. None if the name is taken (the unique index on lower(name) decides, so two
+        simultaneous signups can't both win)."""
+        try:
+            with get_pool().connection() as c:
+                r = c.execute(
+                    "INSERT INTO users (name, source, is_demo, password_hash) VALUES (%s, NULL, false, %s)"
+                    " RETURNING id, name, squad, source, is_demo", (name, hashed),
+                ).fetchone()
+        except pg_errors.UniqueViolation:
+            return None
+        return User(**r)
+
+    def get_profile(self, uid: int) -> Profile | None:
+        with get_pool().connection() as c:
+            r = c.execute(
+                "SELECT u.id, u.name, u.avatar, u.bio, u.squad, u.is_demo, u.created_at AS member_since,"
+                " (SELECT count(*) FROM sleep_sessions WHERE user_id = u.id) AS nights,"
+                " (SELECT coalesce(max(streak_days), 0) FROM daily_scores WHERE user_id = u.id) AS best_streak,"
+                " (SELECT avg(score)::float FROM (SELECT score FROM daily_scores WHERE user_id = u.id"
+                "  ORDER BY time DESC LIMIT 30) x) AS avg_score FROM users u WHERE u.id = %s", (uid,),
+            ).fetchone()
+        if r is None:
+            return None
+        r = _naive(r)
+        stats = ProfileStats(
+            nights=r["nights"], best_streak=r["best_streak"],
+            avg_score=round(r["avg_score"], 1) if r["avg_score"] is not None else None,
+        )
+        return Profile(
+            id=r["id"], name=r["name"], avatar=r["avatar"], bio=r["bio"], squad=r["squad"], is_demo=r["is_demo"],
+            member_since=r["member_since"], stats=stats,
+        )
+
+    def update_profile(self, uid: int, name: str | None, avatar: str | None, bio: str | None) -> Profile:
+        """None = leave as is, "" = clear (avatar/bio). Raises NameTaken on a duplicate name."""
+        sets, params = [], []
+        for col, value in (("name", name), ("avatar", avatar), ("bio", bio)):
+            if value is not None:
+                sets.append(f"{col} = %s")
+                params.append(value if col == "name" else (value or None))
+        if sets:
+            try:
+                with get_pool().connection() as c:
+                    c.execute(f"UPDATE users SET {', '.join(sets)} WHERE id = %s", (*params, uid))
+            except pg_errors.UniqueViolation:
+                raise NameTaken(name) from None
+        return self.get_profile(uid)
 
     def get_prefs(self, uid: int) -> Prefs:
         with get_pool().connection() as c:
@@ -370,25 +528,33 @@ class SqlStore:
         nights = [_night(r) for r in c.execute(
             f"SELECT {NIGHT_COLS} FROM sleep_sessions WHERE user_id = %s ORDER BY end_time", (uid,))]
         c.execute("DELETE FROM daily_scores WHERE user_id = %s", (uid,))
-        for n, s in zip(nights, compute_scores(nights, hours)):
-            c.execute(
-                "INSERT INTO daily_scores (time, user_id, score, duration_pts, consistency_pts, quality_pts,"
-                " streak_pts, streak_days) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
-                (datetime.combine(n.day, time(8)), uid, s.score, s.duration_pts, s.consistency_pts,
-                 s.quality_pts, s.streak_pts, s.streak_days),
-            )
+        rows = [
+            (datetime.combine(n.day, time(8)), uid, s.score, s.duration_pts, s.consistency_pts, s.quality_pts,
+             s.streak_pts, s.streak_days)
+            for n, s in zip(nights, compute_scores(nights, hours))
+        ]
+        # one batched round trip, not one INSERT per night
+        c.cursor().executemany(
+            "INSERT INTO daily_scores (time, user_id, score, duration_pts, consistency_pts, quality_pts,"
+            " streak_pts, streak_days) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", rows,
+        )
 
     def add_nights(self, uid: int, new: list[SleepNight]) -> None:
         """Replace by wake date, then rescore the user's whole history (one transaction)."""
         with get_pool().connection() as c:
-            for n in new:
-                c.execute("DELETE FROM sleep_sessions WHERE user_id = %s AND end_time::date = %s", (uid, n.day))
+            cur = c.cursor()
+            for n in new:  # a range, not end_time::date = day, so the (user_id, end_time) index is used
+                start = datetime.combine(n.day, time())
                 c.execute(
-                    "INSERT INTO sleep_sessions (time, user_id, end_time, duration_min, efficiency, deep_min,"
-                    " rem_min, light_min, awake_min, source) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                    (n.bedtime, uid, n.wake_time, n.duration_min, n.efficiency, n.deep_min, n.rem_min,
-                     n.light_min, n.awake_min, n.source),
+                    "DELETE FROM sleep_sessions WHERE user_id = %s AND end_time >= %s AND end_time < %s",
+                    (uid, start, start + timedelta(days=1)),
                 )
+            cur.executemany(
+                "INSERT INTO sleep_sessions (time, user_id, end_time, duration_min, efficiency, deep_min,"
+                " rem_min, light_min, awake_min, source) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                [(n.bedtime, uid, n.wake_time, n.duration_min, n.efficiency, n.deep_min, n.rem_min, n.light_min,
+                  n.awake_min, n.source) for n in new],
+            )
             self._rescore(c, uid)
             if any(n.source == "shortcut" for n in new):
                 c.execute(
@@ -434,26 +600,85 @@ class SqlStore:
             rows = c.execute("SELECT user_id, avg_score FROM weekly_leaderboard WHERE week = %s", (monday,))
             return {r["user_id"]: r["avg_score"] for r in rows}
 
-    def leaderboard(self, period: str, squad: str | None, before: date = date(9999, 12, 31)) -> Leaderboard:
+    # Latest streak per user, looked up only for the rows a query actually returns (uses daily_scores_user_time).
+    _STREAK = " LEFT JOIN LATERAL (SELECT streak_days FROM daily_scores WHERE user_id = t.id ORDER BY time DESC LIMIT 1) st ON true"
+
+    def leaderboard(
+        self, period: str, squad: str | None, before: date = date(9999, 12, 31), limit: int = 100
+    ) -> Leaderboard:
         today = date.today()
         since = today - timedelta(days=today.weekday()) if period == "week" else date(1970, 1, 1)
         with get_pool().connection() as c:
             rows = c.execute(
-                "SELECT u.id, u.name, u.squad, avg(d.score)::float AS score,"
-                " (SELECT streak_days FROM daily_scores WHERE user_id = u.id ORDER BY time DESC LIMIT 1) AS streak"
+                "WITH t AS (SELECT u.id, u.name, u.squad, avg(d.score)::float AS score"
                 " FROM users u JOIN daily_scores d ON d.user_id = u.id"
-                " WHERE u.show_on_board AND d.time >= %s AND d.time::date < %s AND (%s::text IS NULL OR lower(u.squad) = lower(%s))"
-                " GROUP BY u.id ORDER BY score DESC, u.name",
-                (since, before, squad, squad),
+                " WHERE u.show_on_board AND d.time >= %s AND d.time < %s AND (%s::text IS NULL OR lower(u.squad) = lower(%s))"
+                " GROUP BY u.id ORDER BY score DESC, u.name LIMIT %s)"
+                " SELECT t.*, st.streak_days AS streak FROM t" + self._STREAK + " ORDER BY t.score DESC, t.name",
+                (since, before, squad, squad, limit),
             ).fetchall()
         entries = [
             LeaderboardEntry(
                 rank=i, user_id=r["id"], name=r["name"], squad=r["squad"], score=round(r["score"], 1),
-                streak_days=r["streak"], badge=badge_for(r["streak"]),
+                streak_days=r["streak"] or 0, badge=badge_for(r["streak"] or 0),
             )
             for i, r in enumerate(rows, start=1)
         ]
         return Leaderboard(period=period, squad=squad, entries=entries)
+
+    def improved(self, monday: date, squad: str | None, limit: int = 100) -> list[LeaderboardEntry]:
+        """Most improved, straight from the weekly_leaderboard aggregate (one row per user per week)."""
+        with get_pool().connection() as c:
+            rows = c.execute(
+                "WITH t AS (SELECT u.id, u.name, u.squad, w1.avg_score::float AS score,"
+                " (w1.avg_score - w0.avg_score)::float AS delta FROM weekly_leaderboard w1"
+                " JOIN weekly_leaderboard w0 ON w0.user_id = w1.user_id AND w0.week = %s"
+                " JOIN users u ON u.id = w1.user_id"
+                " WHERE w1.week = %s AND u.show_on_board AND round((w1.avg_score - w0.avg_score)::numeric, 1) > 0"
+                " AND (%s::text IS NULL OR lower(u.squad) = lower(%s))"
+                " ORDER BY delta DESC, u.name LIMIT %s)"
+                " SELECT t.*, st.streak_days AS streak FROM t" + self._STREAK + " ORDER BY t.delta DESC, t.name",
+                (monday - timedelta(days=7), monday, squad, squad, limit),
+            ).fetchall()
+        return [
+            LeaderboardEntry(
+                rank=i, user_id=r["id"], name=r["name"], squad=r["squad"], score=round(r["score"], 1),
+                streak_days=r["streak"] or 0, badge=badge_for(r["streak"] or 0), delta=round(r["delta"], 1),
+            )
+            for i, r in enumerate(rows, start=1)
+        ]
+
+    def squad_board(self, period: str, limit: int = 50) -> list[SquadEntry]:
+        """Squad vs squad: average of members' average scores, computed in SQL."""
+        today = date.today()
+        since = today - timedelta(days=today.weekday()) if period == "week" else date(1970, 1, 1)
+        with get_pool().connection() as c:
+            rows = c.execute(
+                "WITH per_user AS (SELECT u.squad, round(avg(d.score)::numeric, 1) AS s FROM users u"
+                " JOIN daily_scores d ON d.user_id = u.id"
+                " WHERE u.show_on_board AND u.squad IS NOT NULL AND d.time >= %s GROUP BY u.id, u.squad)"
+                " SELECT squad, avg(s)::float AS score, count(*) AS members FROM per_user"
+                " GROUP BY squad ORDER BY score DESC, squad LIMIT %s",
+                (since, limit),
+            ).fetchall()
+        return [
+            SquadEntry(rank=i, squad=r["squad"], score=round(r["score"], 1), members=r["members"])
+            for i, r in enumerate(rows, start=1)
+        ]
+
+    def squad_members(self, name: str, limit: int = 100) -> list[SquadMember]:
+        """Members who show on the leaderboard (score-level info only)."""
+        with get_pool().connection() as c:
+            rows = c.execute(
+                "WITH t AS (SELECT id, name FROM users WHERE lower(squad) = lower(%s) AND show_on_board"
+                " ORDER BY id LIMIT %s)"
+                " SELECT t.*, st.streak_days AS streak FROM t" + self._STREAK + " ORDER BY t.id",
+                (name, limit),
+            ).fetchall()
+        return [
+            SquadMember(user_id=r["id"], name=r["name"], streak_days=r["streak"] or 0, badge=badge_for(r["streak"] or 0))
+            for r in rows
+        ]
 
 
 # No DATABASE_URL (fresh clone, CI) -> in-memory demo data.

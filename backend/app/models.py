@@ -26,6 +26,41 @@ class LoginResponse(BaseModel):
     token: str
 
 
+class SignupRequest(BaseModel):
+    username: str  # 3-24 chars: letters, digits, _ . -  (unique, case-insensitive)
+    password: str  # 8-128 chars
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class ProfileStats(BaseModel):
+    nights: int = 0  # nights logged
+    best_streak: int = 0
+    avg_score: float | None = None  # last 30 nights
+
+
+class Profile(BaseModel):
+    """The signed-in user's own profile (GET/PUT /me)."""
+    id: int
+    name: str
+    avatar: str | None = None  # a short emoji or key the app maps to a picture
+    bio: str | None = None
+    squad: str | None = None
+    is_demo: bool = True
+    member_since: dt.datetime | None = None
+    stats: ProfileStats = ProfileStats()
+
+
+class ProfileUpdate(BaseModel):
+    """Send only what changes. Empty string clears avatar or bio."""
+    name: str | None = None
+    avatar: str | None = None
+    bio: str | None = None
+
+
 class Prefs(BaseModel):
     """Per-user goals and privacy toggles. Times are minutes after midnight."""
     bedtime: int = 22 * 60 + 45
@@ -69,6 +104,8 @@ class FriendCard(BaseModel):
     best_streak: int = 0
     badge: str | None = None
     details: FriendDetails | None = None
+    avatar: str | None = None
+    bio: str | None = None
 
 
 class IngestToken(BaseModel):

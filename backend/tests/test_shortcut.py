@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -15,7 +17,8 @@ not a sample line
 
 
 def test_parse_and_ingest(monkeypatch):
-    monkeypatch.setattr(sleep, "store", Store())
+    # pin the seed's last night to the SAMPLE's wake date, or this test breaks when the calendar rolls over
+    monkeypatch.setattr(sleep, "store", Store(today=date(2026, 10, 10)))
     c = TestClient(app)
     r = c.post("/sleep/shortcut", content=SAMPLE, headers={"X-User-Id": "1", "Content-Type": "text/plain"})
     assert r.status_code == 200

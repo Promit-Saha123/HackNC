@@ -6,14 +6,69 @@ import base64
 import hashlib
 import hmac
 import os
+import re
 import time
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Request
 
 from .config import settings
 
 DEMO_PASSWORD = "sleepsquad"
 TOKEN_DAYS = 30
+NAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,24}$")
+
+
+def clean_username(name: str) -> str:
+    """Validate a username (login handle and display name): 3-24 chars of letters, digits, _ . -"""
+    name = name.strip()
+    if not NAME_RE.match(name):
+        raise HTTPException(422, "Usernames are 3-24 characters: letters, numbers, _ . -")
+    return name
+
+
+def check_new_password(pw: str) -> str:
+    if not 8 <= len(pw) <= 128:
+        raise HTTPException(422, "Passwords are 8-128 characters.")
+    return pw
+
+
+# Attempt limiter. ponytail: in-process counters, so with several server workers each keeps its own (the real limit is
+# workers x limit) and a restart resets them. Move to Redis or a table if that ever matters.
+_fails: dict[str, list[float]] = {}
+_MAX_WINDOW = 3600
+
+
+def client_ip(request: Request) -> str:
+    """Behind the Cloudflare tunnel the peer is the tunnel itself, so prefer the forwarded client IP.
+    Those headers are spoofable if the server is exposed directly, so per-username limits back this up."""
+    fwd = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    return fwd or (request.client.host if request.client else "unknown")
+
+
+def _recent(key: str, window: int) -> list[float]:
+    hits = [t for t in _fails.get(key, []) if t > time.time() - window]
+    if hits:
+        _fails[key] = hits
+    else:
+        _fails.pop(key, None)
+    return hits
+
+
+def check_rate(key: str, limit: int, window: int) -> None:
+    """429 once `key` has `limit` recorded attempts within `window` seconds."""
+    if len(_fails) > 5000:  # bound memory: sweep expired keys
+        for k in list(_fails):
+            _recent(k, _MAX_WINDOW)
+    if len(_recent(key, window)) >= limit:
+        raise HTTPException(429, "Too many attempts. Try again in a few minutes.")
+
+
+def record_fail(key: str) -> None:
+    _fails.setdefault(key, []).append(time.time())
+
+
+def clear_fails(key: str) -> None:
+    _fails.pop(key, None)
 
 
 def _scrypt(pw: str, salt: bytes) -> str:

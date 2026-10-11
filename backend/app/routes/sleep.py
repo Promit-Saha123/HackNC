@@ -74,8 +74,9 @@ def samples_to_nights(samples) -> list[SleepNight]:
 
 
 @router.get("/users", response_model=list[User])
-def users():
-    return store.list_users()
+def users(limit: int = Query(200, ge=1, le=500), offset: int = Query(0, ge=0)):
+    """The demo profiles (the login picker), paged. Real accounts are never listed, so strangers can't enumerate them."""
+    return store.list_users(limit, offset, demo_only=True)
 
 
 @router.get("/users/{user_id}/overview", response_model=Overview, dependencies=[Depends(require_self)])
@@ -100,7 +101,7 @@ def delete_data(user_id: int, uid: int = Depends(current_user_id)):
     """Privacy: remove a user's rows (own account only). Demo profiles are shared by the whole squad, so they can't be deleted."""
     if uid != user_id:
         raise HTTPException(403, "you can only delete your own data")
-    user = next((u for u in store.list_users() if u.id == user_id), None)
+    user = store.get_user(user_id)
     if user is None:
         raise HTTPException(404, "unknown user")
     if user.is_demo:
@@ -113,7 +114,7 @@ async def shortcut(request: Request, x_ingest_token: str = Header(""), x_user_id
     """Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line.
     Identify the user with a plain X-User-Id, or with an X-Ingest-Token (from POST /ingest/token), which wins if both are sent."""
     x_user_id = ingest_user_id(x_ingest_token) if x_ingest_token else x_user_id
-    user = next((u for u in store.list_users() if u.id == x_user_id), None)
+    user = store.get_user(x_user_id) if x_user_id is not None else None
     if user is None:
         raise HTTPException(404 if x_user_id is not None else 401, "unknown user" if x_user_id is not None else "missing X-User-Id or X-Ingest-Token")
     samples, skipped = parse_samples((await request.body()).decode("utf-8", errors="replace"))

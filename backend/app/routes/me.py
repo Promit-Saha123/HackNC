@@ -1,13 +1,66 @@
-"""The signed-in user's own data: goals/privacy, manual sleep log, squad. The user always comes from the bearer token."""
+"""The signed-in user's own data: profile, goals/privacy, manual sleep log, squad. The user always comes from the bearer token."""
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..auth import current_user_id
-from ..models import ManualNight, Prefs, SleepNight, SquadCreate, SquadInfo, SquadJoin, SyncStatus
-from ..store import store
+from ..auth import (
+    check_new_password, check_password, check_rate, clean_username, clear_fails, current_user_id, hash_password,
+    record_fail,
+)
+from ..models import (
+    ManualNight, PasswordChange, Prefs, Profile, ProfileUpdate, SleepNight, SquadCreate, SquadInfo, SquadJoin,
+    SyncStatus,
+)
+from ..store import NameTaken, store
 
 router = APIRouter(prefix="/me")
 
 MANUAL_EFFICIENCY = 0.9  # no stage data for a hand-typed night, so assume a typical efficiency
+
+
+@router.get("", response_model=Profile)
+def get_me(uid: int = Depends(current_user_id)):
+    profile = store.get_profile(uid)
+    if profile is None:
+        raise HTTPException(401, "that account no longer exists")
+    return profile
+
+
+@router.put("", response_model=Profile)
+def update_me(body: ProfileUpdate, uid: int = Depends(current_user_id)):
+    """Change name, avatar or bio. Demo profiles are shared, so they are read-only."""
+    current = store.get_profile(uid)
+    if current is None:
+        raise HTTPException(401, "that account no longer exists")
+    if current.is_demo:
+        raise HTTPException(403, "demo profiles can't be edited")
+    name = clean_username(body.name) if body.name is not None else None
+    if body.avatar is not None and len(body.avatar.strip()) > 16:
+        raise HTTPException(422, "avatar must be at most 16 characters")
+    if body.bio is not None and len(body.bio.strip()) > 160:
+        raise HTTPException(422, "bio must be at most 160 characters")
+    try:
+        return store.update_profile(
+            uid, name, None if body.avatar is None else body.avatar.strip(), None if body.bio is None else body.bio.strip()
+        )
+    except NameTaken:
+        raise HTTPException(409, "That username is taken.") from None
+
+
+@router.post("/password", status_code=204)
+def change_password(body: PasswordChange, uid: int = Depends(current_user_id)):
+    """Needs the current password. Demo profiles share one password, so they can't change it."""
+    key = f"pw:{uid}"
+    check_rate(key, 10, 300)
+    cred = store.credentials(uid)
+    if cred is None:
+        raise HTTPException(401, "that account no longer exists")
+    hashed, is_demo = cred
+    if is_demo:
+        raise HTTPException(403, "demo profiles share a password and can't change it")
+    if hashed is None or not check_password(body.current_password, hashed, False):
+        record_fail(key)
+        raise HTTPException(403, "Your current password is wrong.")  # 403, not 401, so the app doesn't sign the user out
+    clear_fails(key)
+    store.set_password(uid, hash_password(check_new_password(body.new_password)))
 
 
 @router.get("/prefs", response_model=Prefs)
