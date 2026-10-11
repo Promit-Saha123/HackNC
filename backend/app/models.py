@@ -209,6 +209,22 @@ class SyncStatus(BaseModel):
     nights_synced: int = 0
 
 
+class WhoopStatus(BaseModel):
+    """WHOOP connection for the Profile screen. Only sleep is ever read (scopes: read:sleep, read:profile, offline)."""
+    configured: bool = True  # False when the server has no WHOOP app credentials yet
+    connected: bool = False
+    last_sync_at: dt.datetime | None = None
+    nights_synced: int = 0
+
+
+class WhoopConnectUrl(BaseModel):
+    url: str  # open this in a browser: WHOOP login -> consent -> back to our callback
+
+
+class WhoopSyncResult(BaseModel):
+    nights_found: int
+
+
 class ShortcutResult(BaseModel):
     user_id: int
     samples_parsed: int

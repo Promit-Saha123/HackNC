@@ -35,7 +35,8 @@ Last updated: 2026-10-11, Pranav (P3). Deadline: Devpost 10:00 AM Sun Oct 11, su
 - Weekly insight `GET /ai/insight/{user_id}` (`integrations/insight.py`): strongest pattern in the last 28 nights found in code (bedtime before midnight, weekend drift, week trend, else steady); Gemini only phrases it.
 - App side: regenerated `schema.ts`, `api.squadLeaderboard()`, `period: 'improved'`, `api.insight()` + mocks.
 - API client catch-up (PRs #19, #20, merged): login/signup/logout/me, history, profile/updateProfile/changePassword, prefs, logSleep, squads, friendCard, syncStatus, ingestToken, deleteMyData; `ApiError` / `isAuthError` in `src/api/errors.ts`. Mocks mirror the backend's 8 demo friends x 60 nights.
-- ElevenLabs Listen button (`p2/elevenlabs-briefing`, PR #16): not on main yet.
+- ElevenLabs Listen button (PR #23, merged): in the briefing sheet (`BriefingCard.tsx`), plays the cached MP3 with the user's auth header.
+- P1: WHOOP backend (PR #24, merged): OAuth connect, sleep sync, webhook, disconnect (`routes/whoop.py`, `db/008_whoop.sql`). No app UI yet.
 
 ### P3 Pranav (app UI): design (`p3/design-system`)
 - **Look:** Frutiger Aero on iOS Liquid Glass over a night sky. Font: Plus Jakarta Sans. White text with soft shadows.
@@ -62,7 +63,7 @@ Last updated: 2026-10-11, Pranav (P3). Deadline: Devpost 10:00 AM Sun Oct 11, su
 ## In progress
 - **P3 Pranav:** `p3/api-catchup` PR open; phone-test against Render (mocks off), merge.
 - **P1 Promit:** iOS Shortcut + real sync test through the tunnel.
-- **P2 Sharvil:** Devpost, `docs/`, demo video. ElevenLabs audio deferred (no key yet).
+- **P2 Sharvil:** Devpost, `docs/`, demo video. ElevenLabs Listen button merged (#23; plays when the backend has an ElevenLabs key).
 
 ## Next up
 - **Everyone:** phone-test `p3/api-catchup` in Expo Go (QR command below).

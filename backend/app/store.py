@@ -11,7 +11,7 @@ from psycopg import errors as pg_errors
 
 from .models import (
     HistoryNight, Leaderboard, LeaderboardEntry, NightScore, Overview, Prefs, Profile, ProfileStats, ScoreBreakdown,
-    SleepNight, SquadEntry, SquadInfo, SquadMember, SyncStatus, User,
+    SleepNight, SquadEntry, SquadInfo, SquadMember, SyncStatus, User, WhoopStatus,
 )
 from .scoring import badge_for, compute_scores
 
@@ -90,6 +90,7 @@ class Store:
         self.prefs: dict[int, Prefs] = {}
         self.synced: dict[int, datetime] = {}  # last Shortcut sync per user
         self.extra: dict[int, dict] = {}  # avatar / bio / created per user
+        self.whoop: dict[int, dict] = {}  # WHOOP connection per user (tokens, whoop_user_id, last_sync_at)
         self.squads: dict[str, str] = dict(DEMO_SQUAD_CODES)  # name -> invite code
         for uid, (name, squad, bed_h, sleep_h, kind) in enumerate(PROFILES, start=1):
             self.users[uid] = User(id=uid, name=name, squad=squad, source="seed", is_demo=True)
@@ -108,7 +109,7 @@ class Store:
 
     def delete_user(self, uid: int) -> None:
         """Remove the user and all their rows."""
-        for table in (self.users, self.nights, self.scores, self.hashes, self.prefs, self.synced, self.extra):
+        for table in (self.users, self.nights, self.scores, self.hashes, self.prefs, self.synced, self.extra, self.whoop):
             table.pop(uid, None)
 
     def login_info(self, name: str) -> tuple[User, str | None] | None:
@@ -217,15 +218,43 @@ class Store:
         synced = sum(n.source == "shortcut" for n in self.nights.get(uid, []))
         return SyncStatus(connected=at is not None, last_sync_at=at, nights_synced=synced)
 
+    # --- WHOOP connection (tokens are naive UTC datetimes) ---
+    def get_whoop(self, uid: int) -> dict | None:
+        return self.whoop.get(uid)
+
+    def save_whoop(self, uid: int, whoop_user_id: int, access: str, refresh: str, expires_at: datetime, scope: str) -> None:
+        self.whoop[uid] = {"whoop_user_id": whoop_user_id, "access_token": access, "refresh_token": refresh,
+                           "expires_at": expires_at, "scope": scope, "last_sync_at": None}
+
+    def update_whoop_tokens(self, uid: int, access: str, refresh: str, expires_at: datetime) -> None:
+        self.whoop[uid].update(access_token=access, refresh_token=refresh, expires_at=expires_at)
+
+    def touch_whoop(self, uid: int) -> None:
+        if uid in self.whoop:
+            self.whoop[uid]["last_sync_at"] = datetime.now()
+
+    def whoop_uid(self, whoop_user_id: int) -> int | None:
+        return next((uid for uid, c in self.whoop.items() if c["whoop_user_id"] == whoop_user_id), None)
+
+    def delete_whoop(self, uid: int) -> None:
+        self.whoop.pop(uid, None)
+
+    def whoop_status(self, uid: int) -> WhoopStatus:
+        c = self.whoop.get(uid)
+        nights = sum(n.source == "whoop" for n in self.nights.get(uid, []))
+        return WhoopStatus(connected=c is not None, last_sync_at=c["last_sync_at"] if c else None, nights_synced=nights)
+
     def add_nights(self, uid: int, new: list[SleepNight]) -> None:
         """Merge by wake date (new replaces old), then rescore the user's history."""
         by_day = {n.day: n for n in self.nights[uid]}
         by_day.update({n.day: n for n in new})
         self.nights[uid] = sorted(by_day.values(), key=lambda n: n.day)
         self.scores[uid] = compute_scores(self.nights[uid], self.get_prefs(uid).hours)
-        if any(n.source == "shortcut" for n in new):
-            self.users[uid] = self.users[uid].model_copy(update={"is_demo": False, "source": "shortcut"})
-            self.synced[uid] = datetime.now()
+        real = next((n.source for n in new if n.source in ("shortcut", "whoop")), None)  # real device data
+        if real:
+            self.users[uid] = self.users[uid].model_copy(update={"is_demo": False, "source": real})
+            if real == "shortcut":
+                self.synced[uid] = datetime.now()
 
     def overview(self, uid: int) -> Overview | None:
         user = self.users.get(uid)
@@ -522,6 +551,55 @@ class SqlStore:
         r = _naive(r)
         return SyncStatus(connected=r["last_sync_at"] is not None, last_sync_at=r["last_sync_at"], nights_synced=r["n"])
 
+    # --- WHOOP connection (tokens are naive UTC datetimes, stored as timestamptz in a UTC session) ---
+    def get_whoop(self, uid: int) -> dict | None:
+        with get_pool().connection() as c:
+            r = c.execute(
+                "SELECT whoop_user_id, access_token, refresh_token, expires_at, scope, last_sync_at"
+                " FROM whoop_connections WHERE user_id = %s", (uid,),
+            ).fetchone()
+        return _naive(r) if r else None
+
+    def save_whoop(self, uid: int, whoop_user_id: int, access: str, refresh: str, expires_at: datetime, scope: str) -> None:
+        with get_pool().connection() as c:
+            c.execute(
+                "INSERT INTO whoop_connections (user_id, whoop_user_id, access_token, refresh_token, expires_at, scope)"
+                " VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (user_id) DO UPDATE SET whoop_user_id = EXCLUDED.whoop_user_id,"
+                " access_token = EXCLUDED.access_token, refresh_token = EXCLUDED.refresh_token,"
+                " expires_at = EXCLUDED.expires_at, scope = EXCLUDED.scope, connected_at = now(), last_sync_at = NULL",
+                (uid, whoop_user_id, access, refresh, expires_at, scope),
+            )
+
+    def update_whoop_tokens(self, uid: int, access: str, refresh: str, expires_at: datetime) -> None:
+        with get_pool().connection() as c:
+            c.execute(
+                "UPDATE whoop_connections SET access_token = %s, refresh_token = %s, expires_at = %s WHERE user_id = %s",
+                (access, refresh, expires_at, uid),
+            )
+
+    def touch_whoop(self, uid: int) -> None:
+        with get_pool().connection() as c:
+            c.execute("UPDATE whoop_connections SET last_sync_at = %s WHERE user_id = %s", (datetime.now(), uid))
+
+    def whoop_uid(self, whoop_user_id: int) -> int | None:
+        with get_pool().connection() as c:
+            r = c.execute("SELECT user_id FROM whoop_connections WHERE whoop_user_id = %s", (whoop_user_id,)).fetchone()
+        return r["user_id"] if r else None
+
+    def delete_whoop(self, uid: int) -> None:
+        with get_pool().connection() as c:
+            c.execute("DELETE FROM whoop_connections WHERE user_id = %s", (uid,))
+
+    def whoop_status(self, uid: int) -> WhoopStatus:
+        with get_pool().connection() as c:
+            r = c.execute(
+                "SELECT (SELECT last_sync_at FROM whoop_connections WHERE user_id = %s) AS last_sync_at,"
+                " EXISTS (SELECT 1 FROM whoop_connections WHERE user_id = %s) AS connected,"
+                " (SELECT count(*) FROM sleep_sessions WHERE user_id = %s AND source = 'whoop') AS n", (uid, uid, uid),
+            ).fetchone()
+        r = _naive(r)
+        return WhoopStatus(connected=r["connected"], last_sync_at=r["last_sync_at"], nights_synced=r["n"])
+
     def _rescore(self, c, uid: int) -> None:
         """Rebuild the user's daily_scores from their nights and their hours goal (call inside a transaction)."""
         hours = c.execute("SELECT goal_hours FROM users WHERE id = %s", (uid,)).fetchone()["goal_hours"]
@@ -556,11 +634,14 @@ class SqlStore:
                   n.awake_min, n.source) for n in new],
             )
             self._rescore(c, uid)
-            if any(n.source == "shortcut" for n in new):
+            real = next((n.source for n in new if n.source in ("shortcut", "whoop")), None)  # real device data
+            if real == "shortcut":
                 c.execute(
                     "UPDATE users SET is_demo = false, source = 'shortcut', last_sync_at = %s WHERE id = %s",
                     (datetime.now(), uid),
                 )
+            elif real == "whoop":
+                c.execute("UPDATE users SET is_demo = false, source = 'whoop' WHERE id = %s", (uid,))
 
     def overview(self, uid: int) -> Overview | None:
         with get_pool().connection() as c:

@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 
 from .config import settings
 from .db import get_pool
-from .routes import ai, auth, ingest, me, leaderboard, sleep
+from .routes import ai, auth, ingest, me, leaderboard, sleep, whoop
 
 app = FastAPI(title="Sleep Squad API")
 
@@ -16,7 +16,8 @@ app.add_middleware(
 )
 
 
-@app.api_route("/health", methods=["GET", "HEAD"])  # HEAD too: many uptime monitors (UptimeRobot) probe with HEAD
+@app.head("/health", include_in_schema=False)  # HEAD too: many uptime monitors (UptimeRobot) probe with HEAD
+@app.get("/health")
 def health(deep: bool = False):
     """Liveness by default (cheap). ?deep=true also pings the database and returns 503 if it's down, for uptime checks."""
     if not deep:
@@ -31,5 +32,5 @@ def health(deep: bool = False):
     return {"status": "ok", "db": "ok"}
 
 
-for module in (sleep, leaderboard, ai, ingest, auth, me):
+for module in (sleep, leaderboard, ai, ingest, auth, me, whoop):
     app.include_router(module.router)
