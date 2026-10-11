@@ -1,9 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends
+
+from ..auth import current_user_id, make_ingest_token
+from ..models import IngestToken
 
 router = APIRouter(prefix="/ingest")
 
 
-@router.post("/{user_id}/token")
-def create_token(user_id: int):
-    """v3: per-user ingest token for the Shortcut (replaces the bare X-User-Id)."""
-    raise HTTPException(501, "per-user ingest tokens land in v3")
+@router.post("/token", response_model=IngestToken)
+def ingest_token(uid: int = Depends(current_user_id)):
+    """Per-user token for the Shortcut's X-Ingest-Token header (replaces the bare X-User-Id)."""
+    return IngestToken(user_id=uid, token=make_ingest_token(uid))

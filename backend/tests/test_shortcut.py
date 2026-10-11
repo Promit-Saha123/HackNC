@@ -28,3 +28,21 @@ def test_parse_and_ingest(monkeypatch):
 def test_unknown_user_404():
     r = TestClient(app).post("/sleep/shortcut", content=SAMPLE, headers={"X-User-Id": "999"})
     assert r.status_code == 404
+
+def test_ingest_token(monkeypatch):
+    from app.auth import make_ingest_token, make_token
+
+    store = Store()
+    store.users[1] = store.users[1].model_copy(update={"is_demo": False})  # pretend Maya is a real user
+    monkeypatch.setattr(sleep, "store", store)
+    c = TestClient(app)
+    post = lambda h: c.post("/sleep/shortcut", content=SAMPLE, headers=h).status_code  # noqa: E731
+    assert post({"X-User-Id": "1"}) == 401  # real users need the token
+    assert post({"X-User-Id": "2"}) == 200  # demo profiles still work bare
+    assert post({"X-Ingest-Token": make_ingest_token(1)}) == 200
+    assert post({"X-Ingest-Token": make_ingest_token(1)[:-2] + "00"}) == 401  # forged
+    assert post({}) == 401
+    assert post({"X-Ingest-Token": make_token(1)}) == 401  # a login token isn't an ingest token
+    r = c.post("/ingest/token", headers={"Authorization": f"Bearer {make_token(1)}"})
+    assert r.json()["token"] == make_ingest_token(1)
+    assert c.post("/ingest/token").status_code == 401

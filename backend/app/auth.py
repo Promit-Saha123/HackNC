@@ -52,6 +52,16 @@ def user_id_from(token: str) -> int | None:
         return None
 
 
+def make_ingest_token(uid: int) -> str:
+    """Long-lived, ingest-only token for the iOS Shortcut (can't read data or log in). Same secret, so rotating AUTH_SECRET revokes all."""
+    return f"{uid}.{_sign(f'ingest.{uid}')}"
+
+
+def ingest_user_id(token: str) -> int | None:
+    uid, _, sig = token.partition(".")
+    return int(uid) if uid.isdigit() and hmac.compare_digest(sig, _sign(f"ingest.{uid}")) else None
+
+
 def current_user_id(authorization: str = Header("")) -> int:
     """FastAPI dependency: the user id behind a valid bearer token, else 401."""
     uid = user_id_from(authorization.removeprefix("Bearer ").strip())

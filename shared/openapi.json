@@ -128,15 +128,32 @@
     "/sleep/shortcut": {
       "post": {
         "summary": "Shortcut",
-        "description": "Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line.",
+        "description": "Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line.\nAuth: X-Ingest-Token (from POST /ingest/token). A bare X-User-Id is accepted for demo profiles only.",
         "operationId": "shortcut_sleep_shortcut_post",
         "parameters": [
           {
+            "name": "x-ingest-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Ingest-Token"
+            }
+          },
+          {
             "name": "x-user-id",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "integer",
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "X-User-Id"
             }
           }
@@ -347,19 +364,20 @@
         }
       }
     },
-    "/ingest/{user_id}/token": {
+    "/ingest/token": {
       "post": {
-        "summary": "Create Token",
-        "description": "v3: per-user ingest token for the Shortcut (replaces the bare X-User-Id).",
-        "operationId": "create_token_ingest__user_id__token_post",
+        "summary": "Ingest Token",
+        "description": "Per-user token for the Shortcut's X-Ingest-Token header (replaces the bare X-User-Id).",
+        "operationId": "ingest_token_ingest_token_post",
         "parameters": [
           {
-            "name": "user_id",
-            "in": "path",
-            "required": true,
+            "name": "authorization",
+            "in": "header",
+            "required": false,
             "schema": {
-              "type": "integer",
-              "title": "User Id"
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
             }
           }
         ],
@@ -368,7 +386,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/IngestToken"
+                }
               }
             }
           },
@@ -792,6 +812,24 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "IngestToken": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "token"
+        ],
+        "title": "IngestToken"
       },
       "Leaderboard": {
         "properties": {

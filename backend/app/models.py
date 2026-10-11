@@ -54,6 +54,11 @@ class SquadJoin(BaseModel):
     code: str
 
 
+class IngestToken(BaseModel):
+    user_id: int
+    token: str
+
+
 class SleepNight(BaseModel):
     day: dt.date  # wake-up date
     bedtime: dt.datetime
