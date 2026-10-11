@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     whoop_client_id: str = ""
     whoop_client_secret: str = ""
     cors_origins: str = "*"
+    auth_secret: str = "dev-secret-change-me"  # set AUTH_SECRET in backend/.env for the demo
+    strict_privacy: bool = False  # True: overview/history are readable only by the signed-in user
+    db_pool_max: int = 10  # connections per process. Keep (workers x this) under the Tiger plan's connection limit
+    db_statement_timeout_ms: int = 15000
 
 
 settings = Settings()

@@ -24,18 +24,54 @@
     "/users": {
       "get": {
         "summary": "Users",
+        "description": "The demo profiles (the login picker), paged. Real accounts are never listed, so strangers can't enumerate them.",
         "operationId": "users_users_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/User"
                   },
-                  "type": "array",
                   "title": "Response Users Users Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -55,6 +91,16 @@
             "schema": {
               "type": "integer",
               "title": "User Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
             }
           }
         ],
@@ -82,18 +128,144 @@
         }
       }
     },
-    "/sleep/shortcut": {
-      "post": {
-        "summary": "Shortcut",
-        "description": "Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line.",
-        "operationId": "shortcut_sleep_shortcut_post",
+    "/users/{user_id}/history": {
+      "get": {
+        "summary": "History",
+        "description": "The last `days` nights (oldest first) with times, stage minutes and score: powers the calendar and Trends.",
+        "operationId": "history_users__user_id__history_get",
         "parameters": [
           {
-            "name": "x-user-id",
-            "in": "header",
+            "name": "user_id",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "integer",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 60,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HistoryNight"
+                  },
+                  "title": "Response History Users  User Id  History Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{user_id}/data": {
+      "delete": {
+        "summary": "Delete Data",
+        "description": "Privacy: remove a user's rows (own account only). Demo profiles are shared by the whole squad, so they can't be deleted.",
+        "operationId": "delete_data_users__user_id__data_delete",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sleep/shortcut": {
+      "post": {
+        "summary": "Shortcut",
+        "description": "Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line.\nIdentify the user with a plain X-User-Id, or with an X-Ingest-Token (from POST /ingest/token), which wins if both are sent.",
+        "operationId": "shortcut_sleep_shortcut_post",
+        "parameters": [
+          {
+            "name": "x-ingest-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Ingest-Token"
+            }
+          },
+          {
+            "name": "x-user-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "X-User-Id"
             }
           }
@@ -125,6 +297,7 @@
     "/leaderboard": {
       "get": {
         "summary": "Leaderboard",
+        "description": "Top `limit` entries. Ranking and the streak lookups happen in the database, so cost follows `limit`, not user count.",
         "operationId": "leaderboard_leaderboard_get",
         "parameters": [
           {
@@ -156,6 +329,18 @@
                 }
               ],
               "title": "Squad"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
             }
           }
         ],
@@ -202,6 +387,18 @@
               "default": "week",
               "title": "Period"
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
           }
         ],
         "responses": {
@@ -211,6 +408,96 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SquadLeaderboard"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/squads/{code}": {
+      "get": {
+        "summary": "Squad Detail",
+        "description": "Who is in a squad (by invite code). Score-level info only, and members who hid from the leaderboard are left out.",
+        "operationId": "squad_detail_squads__code__get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SquadDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{user_id}/card": {
+      "get": {
+        "summary": "Friend Card",
+        "description": "Friend card. Score and streak are always shown; bedtime and hours only if the user turned on sharing.\nUsers who hid themselves from the leaderboard are visible only to themselves.",
+        "operationId": "friend_card_users__user_id__card_get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendCard"
                 }
               }
             }
@@ -267,6 +554,46 @@
         }
       }
     },
+    "/ai/insight/{user_id}": {
+      "get": {
+        "summary": "Weekly Insight",
+        "description": "Strongest pattern in the user's last 28 nights, phrased by Gemini (numbers computed in code).",
+        "operationId": "weekly_insight_ai_insight__user_id__get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Insight"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/audio/{file}": {
       "get": {
         "summary": "Audio",
@@ -304,19 +631,20 @@
         }
       }
     },
-    "/ingest/{user_id}/token": {
+    "/ingest/token": {
       "post": {
-        "summary": "Create Token",
-        "description": "v3: per-user ingest token for the Shortcut (replaces the bare X-User-Id).",
-        "operationId": "create_token_ingest__user_id__token_post",
+        "summary": "Ingest Token",
+        "description": "Per-user token for the Shortcut's X-Ingest-Token header (replaces the bare X-User-Id).",
+        "operationId": "ingest_token_ingest_token_post",
         "parameters": [
           {
-            "name": "user_id",
-            "in": "path",
-            "required": true,
+            "name": "authorization",
+            "in": "header",
+            "required": false,
             "schema": {
-              "type": "integer",
-              "title": "User Id"
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
             }
           }
         ],
@@ -325,7 +653,630 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/IngestToken"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/signup": {
+      "post": {
+        "summary": "Signup",
+        "description": "Create a real account and sign it in. The username and a hash of the password are stored (never the password).\n409 if the username already has an account, or if the caller is already signed in to a real account.",
+        "operationId": "signup_auth_signup_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Login",
+        "operationId": "login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "summary": "Me",
+        "operationId": "me_auth_me_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "summary": "Get Me",
+        "operationId": "get_me_me_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update Me",
+        "description": "Change name, avatar or bio. Demo profiles are shared, so they are read-only.",
+        "operationId": "update_me_me_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/password": {
+      "post": {
+        "summary": "Change Password",
+        "description": "Needs the current password. Demo profiles share one password, so they can't change it.",
+        "operationId": "change_password_me_password_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/prefs": {
+      "get": {
+        "summary": "Get Prefs",
+        "operationId": "get_prefs_me_prefs_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Prefs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Put Prefs",
+        "operationId": "put_prefs_me_prefs_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Prefs"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Prefs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/sleep": {
+      "post": {
+        "summary": "Log Night",
+        "description": "Log a night by hand; one night per wake date, a new entry replaces the old.",
+        "operationId": "log_night_me_sleep_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualNight"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SleepNight"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/squad": {
+      "get": {
+        "summary": "My Squad",
+        "operationId": "my_squad_me_squad_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SquadInfo"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response My Squad Me Squad Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Squad",
+        "operationId": "create_squad_me_squad_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SquadCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SquadInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/squad/join": {
+      "post": {
+        "summary": "Join Squad",
+        "operationId": "join_squad_me_squad_join_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SquadJoin"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SquadInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/squad/leave": {
+      "post": {
+        "summary": "Leave Squad",
+        "operationId": "leave_squad_me_squad_leave_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/sync": {
+      "get": {
+        "summary": "Sync Status",
+        "description": "Apple Health row on Profile: has the Shortcut synced, and when.",
+        "operationId": "sync_status_me_sync_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncStatus"
+                }
               }
             }
           },
@@ -374,6 +1325,118 @@
         ],
         "title": "Briefing"
       },
+      "FriendCard": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "squad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Squad"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "streak_days": {
+            "type": "integer",
+            "title": "Streak Days",
+            "default": 0
+          },
+          "best_streak": {
+            "type": "integer",
+            "title": "Best Streak",
+            "default": 0
+          },
+          "badge": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Badge"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FriendDetails"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name"
+        ],
+        "title": "FriendCard",
+        "description": "What a friend sees: score + streak always; details only if the user opted in (Prefs.share_details)."
+      },
+      "FriendDetails": {
+        "properties": {
+          "avg_bedtime": {
+            "type": "integer",
+            "title": "Avg Bedtime"
+          },
+          "avg_hours": {
+            "type": "number",
+            "title": "Avg Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "avg_bedtime",
+          "avg_hours"
+        ],
+        "title": "FriendDetails"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -386,6 +1449,126 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HistoryNight": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "bedtime": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Bedtime"
+          },
+          "wake_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Wake Time"
+          },
+          "duration_min": {
+            "type": "integer",
+            "title": "Duration Min"
+          },
+          "efficiency": {
+            "type": "number",
+            "title": "Efficiency"
+          },
+          "deep_min": {
+            "type": "integer",
+            "title": "Deep Min"
+          },
+          "rem_min": {
+            "type": "integer",
+            "title": "Rem Min"
+          },
+          "light_min": {
+            "type": "integer",
+            "title": "Light Min"
+          },
+          "awake_min": {
+            "type": "integer",
+            "title": "Awake Min"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "bedtime",
+          "wake_time",
+          "duration_min",
+          "efficiency",
+          "deep_min",
+          "rem_min",
+          "light_min",
+          "awake_min",
+          "source",
+          "score"
+        ],
+        "title": "HistoryNight",
+        "description": "One night in GET /users/{id}/history: the full night plus its score."
+      },
+      "IngestToken": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "token"
+        ],
+        "title": "IngestToken"
+      },
+      "Insight": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "nights_used": {
+            "type": "integer",
+            "title": "Nights Used",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "text"
+        ],
+        "title": "Insight",
+        "description": "Weekly AI insight: one pattern from the user's own recent nights (P2, /ai/insight)."
       },
       "Leaderboard": {
         "properties": {
@@ -468,6 +1651,17 @@
             ],
             "title": "Badge"
           },
+          "prev_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prev Rank"
+          },
           "delta": {
             "anyOf": [
               {
@@ -490,6 +1684,62 @@
         ],
         "title": "LeaderboardEntry"
       },
+      "LoginRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest"
+      },
+      "LoginResponse": {
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user",
+          "token"
+        ],
+        "title": "LoginResponse"
+      },
+      "ManualNight": {
+        "properties": {
+          "bed": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Bed"
+          },
+          "wake": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Wake"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bed",
+          "wake"
+        ],
+        "title": "ManualNight",
+        "description": "A night typed in by hand. Send device-local wall-clock ISO times WITHOUT a UTC offset."
+      },
       "NightScore": {
         "properties": {
           "day": {
@@ -500,6 +1750,41 @@
           "score": {
             "type": "number",
             "title": "Score"
+          },
+          "bedtime": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bedtime"
+          },
+          "wake_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wake Time"
+          },
+          "duration_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Min"
           }
         },
         "type": "object",
@@ -557,6 +1842,11 @@
               }
             ],
             "title": "Badge"
+          },
+          "best_streak": {
+            "type": "integer",
+            "title": "Best Streak",
+            "default": 0
           }
         },
         "type": "object",
@@ -564,6 +1854,199 @@
           "user"
         ],
         "title": "Overview"
+      },
+      "PasswordChange": {
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "title": "Current Password"
+          },
+          "new_password": {
+            "type": "string",
+            "title": "New Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChange"
+      },
+      "Prefs": {
+        "properties": {
+          "bedtime": {
+            "type": "integer",
+            "title": "Bedtime",
+            "default": 1365
+          },
+          "wake": {
+            "type": "integer",
+            "title": "Wake",
+            "default": 420
+          },
+          "hours": {
+            "type": "number",
+            "title": "Hours",
+            "default": 8
+          },
+          "share_details": {
+            "type": "boolean",
+            "title": "Share Details",
+            "default": true
+          },
+          "show_on_board": {
+            "type": "boolean",
+            "title": "Show On Board",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "Prefs",
+        "description": "Per-user goals and privacy toggles. Times are minutes after midnight."
+      },
+      "Profile": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          },
+          "squad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Squad"
+          },
+          "is_demo": {
+            "type": "boolean",
+            "title": "Is Demo",
+            "default": true
+          },
+          "member_since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Since"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/ProfileStats",
+            "default": {
+              "nights": 0,
+              "best_streak": 0
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Profile",
+        "description": "The signed-in user's own profile (GET/PUT /me)."
+      },
+      "ProfileStats": {
+        "properties": {
+          "nights": {
+            "type": "integer",
+            "title": "Nights",
+            "default": 0
+          },
+          "best_streak": {
+            "type": "integer",
+            "title": "Best Streak",
+            "default": 0
+          },
+          "avg_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Score"
+          }
+        },
+        "type": "object",
+        "title": "ProfileStats"
+      },
+      "ProfileUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          }
+        },
+        "type": "object",
+        "title": "ProfileUpdate",
+        "description": "Send only what changes. Empty string clears avatar or bio."
       },
       "ScoreBreakdown": {
         "properties": {
@@ -631,6 +2114,24 @@
         ],
         "title": "ShortcutResult"
       },
+      "SignupRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "SignupRequest"
+      },
       "SleepNight": {
         "properties": {
           "day": {
@@ -692,6 +2193,45 @@
         ],
         "title": "SleepNight"
       },
+      "SquadCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SquadCreate"
+      },
+      "SquadDetail": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/SquadMember"
+            },
+            "type": "array",
+            "title": "Members"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "code",
+          "members"
+        ],
+        "title": "SquadDetail"
+      },
       "SquadEntry": {
         "properties": {
           "rank": {
@@ -720,6 +2260,37 @@
         ],
         "title": "SquadEntry"
       },
+      "SquadInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "code"
+        ],
+        "title": "SquadInfo"
+      },
+      "SquadJoin": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "SquadJoin"
+      },
       "SquadLeaderboard": {
         "properties": {
           "period": {
@@ -744,6 +2315,72 @@
           "entries"
         ],
         "title": "SquadLeaderboard"
+      },
+      "SquadMember": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "streak_days": {
+            "type": "integer",
+            "title": "Streak Days",
+            "default": 0
+          },
+          "badge": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Badge"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name"
+        ],
+        "title": "SquadMember",
+        "description": "Score-level info only: members who hid themselves from the leaderboard are left out."
+      },
+      "SyncStatus": {
+        "properties": {
+          "connected": {
+            "type": "boolean",
+            "title": "Connected"
+          },
+          "last_sync_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync At"
+          },
+          "nights_synced": {
+            "type": "integer",
+            "title": "Nights Synced",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "connected"
+        ],
+        "title": "SyncStatus",
+        "description": "Apple Health sync state for the Profile screen (the iOS Shortcut is the only sync path)."
       },
       "User": {
         "properties": {
