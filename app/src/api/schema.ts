@@ -92,6 +92,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/leaderboard/squads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Squads
+         * @description Squad vs squad: average member score.
+         */
+        get: operations["squads_leaderboard_squads_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ai/briefing/{user_id}": {
         parameters: {
             query?: never;
@@ -101,6 +121,26 @@ export interface paths {
         };
         /** Briefing */
         get: operations["briefing_ai_briefing__user_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ai/insight/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Weekly Insight
+         * @description Strongest pattern in the user's last 28 nights, phrased by Gemini (numbers computed in code).
+         */
+        get: operations["weekly_insight_ai_insight__user_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -164,13 +204,30 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * Insight
+         * @description Weekly AI insight: one pattern from the user's own recent nights (P2, /ai/insight).
+         */
+        Insight: {
+            /** User Id */
+            user_id: number;
+            /** Text */
+            text: string;
+            /** Kind */
+            kind?: string | null;
+            /**
+             * Nights Used
+             * @default 0
+             */
+            nights_used: number;
+        };
         /** Leaderboard */
         Leaderboard: {
             /**
              * Period
              * @enum {string}
              */
-            period: "week" | "all";
+            period: "week" | "all" | "improved";
             /** Squad */
             squad?: string | null;
             /** Entries */
@@ -192,6 +249,8 @@ export interface components {
             streak_days: number;
             /** Badge */
             badge?: string | null;
+            /** Delta */
+            delta?: number | null;
         };
         /** NightScore */
         NightScore: {
@@ -278,6 +337,27 @@ export interface components {
             awake_min: number;
             /** Source */
             source: string;
+        };
+        /** SquadEntry */
+        SquadEntry: {
+            /** Rank */
+            rank: number;
+            /** Squad */
+            squad: string;
+            /** Score */
+            score: number;
+            /** Members */
+            members: number;
+        };
+        /** SquadLeaderboard */
+        SquadLeaderboard: {
+            /**
+             * Period
+             * @enum {string}
+             */
+            period: "week" | "all";
+            /** Entries */
+            entries: components["schemas"]["SquadEntry"][];
         };
         /** User */
         User: {
@@ -422,7 +502,7 @@ export interface operations {
     leaderboard_leaderboard_get: {
         parameters: {
             query?: {
-                period?: "week" | "all";
+                period?: "week" | "all" | "improved";
                 squad?: string | null;
             };
             header?: never;
@@ -438,6 +518,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Leaderboard"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    squads_leaderboard_squads_get: {
+        parameters: {
+            query?: {
+                period?: "week" | "all";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SquadLeaderboard"];
                 };
             };
             /** @description Validation Error */
@@ -469,6 +580,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Briefing"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    weekly_insight_ai_insight__user_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Insight"];
                 };
             };
             /** @description Validation Error */

@@ -15,6 +15,7 @@ const httpClient: Api = {
   overview: (userId) => get(`/users/${userId}/overview`),
   leaderboard: (period, squad) =>
     get(`/leaderboard?period=${period}${squad ? `&squad=${encodeURIComponent(squad)}` : ''}`),
+  squadLeaderboard: (period) => get(`/leaderboard/squads?period=${period}`),
   briefing: (userId) => get(`/ai/briefing/${userId}`),
   insight: (userId) => get(`/ai/insight/${userId}`),
 };

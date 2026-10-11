@@ -267,6 +267,46 @@
         }
       }
     },
+    "/ai/insight/{user_id}": {
+      "get": {
+        "summary": "Weekly Insight",
+        "description": "Strongest pattern in the user's last 28 nights, phrased by Gemini (numbers computed in code).",
+        "operationId": "weekly_insight_ai_insight__user_id__get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Insight"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/audio/{file}": {
       "get": {
         "summary": "Audio",
@@ -386,6 +426,41 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "Insight": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "nights_used": {
+            "type": "integer",
+            "title": "Nights Used",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "text"
+        ],
+        "title": "Insight",
+        "description": "Weekly AI insight: one pattern from the user's own recent nights (P2, /ai/insight)."
       },
       "Leaderboard": {
         "properties": {
