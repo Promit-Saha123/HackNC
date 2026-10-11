@@ -73,6 +73,19 @@ MAX_VOICE_BYTES = 3 * 1024 * 1024  # ~3 min of the app's m4a; push-to-talk quest
 MIN_VOICE_BYTES = 1000  # shorter than this is an accidental tap
 
 
+def _audio_kind(audio: bytes) -> str:
+    """Container from magic bytes, for clearer errors when speech-to-text hears nothing."""
+    if audio[4:8] == b"ftyp":
+        return "m4a"
+    if audio[:4] == b"caff":
+        return "caf"
+    if audio[:4] == b"RIFF":
+        return "wav"
+    if audio[:3] == b"ID3" or audio[:2] in (b"\xff\xfb", b"\xff\xf3", b"\xff\xf2"):
+        return "mp3"
+    return "unknown format"
+
+
 @router.post("/ai/transcribe/{user_id}", response_model=Transcript, dependencies=SELF_ONLY)
 async def transcribe(user_id: int, request: Request):
     """Push-to-talk for Somni: raw audio body (m4a) -> ElevenLabs speech-to-text -> the question's text."""
@@ -94,7 +107,11 @@ async def transcribe(user_id: int, request: Request):
         log.warning("ElevenLabs transcription failed: %s", e)
         raise HTTPException(503, "Voice is unavailable right now. Try typing instead.")
     if not text:
-        raise HTTPException(422, "I didn't catch that. Try again a little closer to the mic.")
+        kind = _audio_kind(bytes(audio))
+        log.warning("Transcription empty: %d bytes, %s", len(audio), kind)
+        raise HTTPException(
+            422, f"I didn't catch that. Try again a little closer to the mic. (heard {len(audio) // 1024} KB of {kind} audio)"
+        )
     return Transcript(text=text)
 
 
