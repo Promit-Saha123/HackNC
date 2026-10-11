@@ -8,6 +8,7 @@ import { Glass, HAS_GLASS } from '@/components/Glass';
 import { IconCircle } from '@/components/IconCircle';
 import { Sheet } from '@/components/Sheet';
 import { colors } from '@/theme/colors';
+import { claimAudio } from '@/utils/audioFocus';
 import { fontFamily, type as t } from '@/theme/fonts';
 
 type Props = { userId: number; refreshKey?: number };
@@ -130,6 +131,9 @@ function useBriefingAudio(url: string | null) {
   const toggle = () => {
     if (!url) return;
     if (status.playing) return player.pause();
+    // Playback mode is set at play time (not just on mount) since Somni's mic flips the shared session.
+    setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {});
+    claimAudio('briefing', () => player.pause());
     if (!asked) {
       setRequested(url);
       setTimedOut(false);

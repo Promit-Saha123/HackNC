@@ -27,6 +27,7 @@ import type { ChatMessage } from '@/api/types';
 import { colors } from '@/theme/colors';
 import { fontFamily, type as t } from '@/theme/fonts';
 import { spacing } from '@/theme/spacing';
+import { claimAudio } from '@/utils/audioFocus';
 
 const SILENCE_DB = -50; // peak mic level below this = the phone recorded silence (iOS metering is ~-160..0 dB)
 
@@ -92,6 +93,7 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
       const r = await api.chat(userId, sent, { speak });
       setTurns((prev) => [...prev, { role: 'somni', text: r.reply }]);
       if (speak && r.audio_url) {
+        claimAudio('somni', () => voice.pause());
         voice.replace({ uri: r.audio_url, headers: authHeaders() });
         voice.play();
       }
@@ -113,11 +115,17 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
       const { granted } = await requestRecordingPermissionsAsync();
       if (!granted) return say('Allow microphone access in Settings to talk to me.');
       voice.pause();
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, interruptionMode: 'doNotMix' });
-      await recorder.prepareToRecordAsync();
-      peak.current = null;
-      recorder.record();
-      setMic('recording');
+      claimAudio('somni', () => voice.pause()); // stops the briefing voice so the mic gets the audio session
+      try {
+        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, interruptionMode: 'doNotMix' });
+        await recorder.prepareToRecordAsync();
+        peak.current = null;
+        recorder.record();
+        setMic('recording');
+      } catch (e) {
+        console.warn('somni mic could not start', e);
+        say("I couldn't start the mic. Close other audio and try again, or type your question.");
+      }
       return;
     }
     setMic('transcribing');
@@ -141,6 +149,7 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
       setMic('idle');
       await send(text, true);
     } catch (e) {
+      console.warn('somni mic failed', e);
       setMic('idle');
       say(e instanceof ApiError ? e.message : "I couldn't hear that. Try again, or type your question.");
     }
