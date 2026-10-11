@@ -194,7 +194,7 @@ export default function TrendsScreen() {
         <View style={styles.stats}>
           {[statA, statB].map((s, i) => (
             <Pressable
-              key={s.label}
+              key={i}
               style={({ pressed }) => [styles.stat, i === 1 && styles.statRight, pressed && styles.pressed]}
               onPress={() =>
                 setInfo({
