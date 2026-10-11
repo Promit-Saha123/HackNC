@@ -54,6 +54,23 @@ class SquadJoin(BaseModel):
     code: str
 
 
+class FriendDetails(BaseModel):
+    avg_bedtime: int  # minutes after midnight (local), last 7 nights
+    avg_hours: float
+
+
+class FriendCard(BaseModel):
+    """What a friend sees: score + streak always; details only if the user opted in (Prefs.share_details)."""
+    user_id: int
+    name: str
+    squad: str | None = None
+    score: float | None = None  # last night
+    streak_days: int = 0
+    best_streak: int = 0
+    badge: str | None = None
+    details: FriendDetails | None = None
+
+
 class IngestToken(BaseModel):
     user_id: int
     token: str

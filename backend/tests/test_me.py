@@ -56,3 +56,21 @@ def test_squads(monkeypatch):
     assert c.post("/me/squad/join", json={"code": "owls42"}).json()["name"] == "Night Owls"
     assert c.get("/me/squad").json()["name"] == "Night Owls"
     assert c.post("/me/squad/join", json={"code": "NOPE00"}).status_code == 404
+
+
+def test_friend_card_privacy(monkeypatch):
+    c, store = client(monkeypatch, uid=2)  # Jordan looks at Maya (1)
+    card = c.get("/users/1/card").json()
+    assert card["name"] == "Maya" and card["score"] and card["details"]["avg_hours"] > 6
+    assert 20 * 60 <= card["details"]["avg_bedtime"] < 24 * 60
+    p = store.get_prefs(1)
+    store.set_prefs(1, p.model_copy(update={"share_details": False}))
+    card = c.get("/users/1/card").json()
+    assert card["details"] is None and card["streak_days"] >= 0  # score + streak still visible
+    store.set_prefs(1, p.model_copy(update={"show_on_board": False}))
+    assert c.get("/users/1/card").status_code == 404  # hidden from others
+    c.headers["Authorization"] = f"Bearer {make_token(1)}"
+    assert c.get("/users/1/card").status_code == 200  # but not from themselves
+    c.headers.clear()
+    assert c.get("/users/1/card").status_code == 401
+    assert c.get("/users/999/card", headers={"Authorization": f"Bearer {make_token(1)}"}).status_code == 404

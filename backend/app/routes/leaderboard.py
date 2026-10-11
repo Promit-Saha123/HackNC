@@ -2,9 +2,11 @@ from datetime import date, timedelta
 from statistics import mean
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 
-from ..models import Leaderboard, SquadEntry, SquadLeaderboard
+from ..auth import current_user_id
+from ..models import FriendCard, FriendDetails, Leaderboard, SquadEntry, SquadLeaderboard
+from ..scoring import bedtime_minutes
 from ..store import store
 
 router = APIRouter()
@@ -42,4 +44,25 @@ def squads(period: Literal["week", "all"] = "week"):
     return SquadLeaderboard(
         period=period,
         entries=[SquadEntry(rank=i, squad=n, score=round(s, 1), members=m) for i, (n, s, m) in enumerate(rows, start=1)],
+    )
+
+
+@router.get("/users/{user_id}/card", response_model=FriendCard)
+def friend_card(user_id: int, me: int = Depends(current_user_id)):
+    """Friend card. Score and streak are always shown; bedtime and hours only if the user turned on sharing.
+    Users who hid themselves from the leaderboard are visible only to themselves."""
+    ov = store.overview(user_id)
+    prefs = store.get_prefs(user_id) if ov else None
+    if ov is None or (not prefs.show_on_board and me != user_id):
+        raise HTTPException(404, "unknown user")
+    details = None
+    nights = store.recent_nights(user_id, 7) if prefs.share_details else []
+    if nights:
+        mid = sum(bedtime_minutes(n.bedtime) for n in nights) / len(nights)  # minutes since 18:00, no midnight wrap
+        details = FriendDetails(
+            avg_bedtime=round((mid + 18 * 60) % 1440), avg_hours=round(sum(n.duration_min for n in nights) / len(nights) / 60, 1)
+        )
+    return FriendCard(
+        user_id=user_id, name=ov.user.name, squad=ov.user.squad, score=ov.score.score if ov.score else None,
+        streak_days=ov.streak_days, best_streak=ov.best_streak, badge=ov.badge, details=details,
     )

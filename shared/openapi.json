@@ -288,6 +288,56 @@
         }
       }
     },
+    "/users/{user_id}/card": {
+      "get": {
+        "summary": "Friend Card",
+        "description": "Friend card. Score and streak are always shown; bedtime and hours only if the user turned on sharing.\nUsers who hid themselves from the leaderboard are visible only to themselves.",
+        "operationId": "friend_card_users__user_id__card_get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendCard"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/briefing/{user_id}": {
       "get": {
         "summary": "Briefing",
@@ -799,6 +849,96 @@
           "text"
         ],
         "title": "Briefing"
+      },
+      "FriendCard": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "squad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Squad"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "streak_days": {
+            "type": "integer",
+            "title": "Streak Days",
+            "default": 0
+          },
+          "best_streak": {
+            "type": "integer",
+            "title": "Best Streak",
+            "default": 0
+          },
+          "badge": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Badge"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FriendDetails"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name"
+        ],
+        "title": "FriendCard",
+        "description": "What a friend sees: score + streak always; details only if the user opted in (Prefs.share_details)."
+      },
+      "FriendDetails": {
+        "properties": {
+          "avg_bedtime": {
+            "type": "integer",
+            "title": "Avg Bedtime"
+          },
+          "avg_hours": {
+            "type": "number",
+            "title": "Avg Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "avg_bedtime",
+          "avg_hours"
+        ],
+        "title": "FriendDetails"
       },
       "HTTPValidationError": {
         "properties": {
