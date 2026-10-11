@@ -8,7 +8,7 @@ services:
     runtime: python
     rootDir: backend
     plan: free
-    region: virginia  # match the Tiger Cloud region (database round trips add up); Render regions: oregon, ohio, virginia, frankfurt, singapore
+    region: ohio  # Tiger Cloud is in AWS us-east-2 (Ohio), so keep the API next to it. Render regions: oregon, ohio, virginia, frankfurt, singapore
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
