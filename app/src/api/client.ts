@@ -1,13 +1,19 @@
 import { ApiError } from './errors';
 import { localIso } from './time';
 import { mockClient } from './mockClient';
-import type { Api, LoginResponse, User } from './types';
+import type { Api, Briefing, LoginResponse, User } from './types';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
 export const USE_MOCKS = process.env.EXPO_PUBLIC_USE_MOCKS !== 'false';
 
 // Signed-in token, kept in memory: log in again after an app restart (no extra storage dependency).
 let token: string | null = null;
+
+/** Backend media paths (like `audio_url`) are relative; players need the full URL. */
+export const absoluteUrl = (path: string) => (path.startsWith('http') ? path : `${BASE_URL}${path}`);
+
+/** Auth header for requests the client doesn't make itself (e.g. the audio player fetching `audio_url`). */
+export const authHeaders = (): Record<string, string> => (token ? { Authorization: `Bearer ${token}` } : {});
 
 /** The backend's reason: `detail` is a string for our errors, a list for validation (422) errors. */
 async function errorMessage(res: Response): Promise<string> {
@@ -49,7 +55,10 @@ const httpClient: Api = {
   leaderboard: (period, squad) =>
     get(`/leaderboard?period=${period}${squad ? `&squad=${encodeURIComponent(squad)}` : ''}`),
   squadLeaderboard: (period) => get(`/leaderboard/squads?period=${period}`),
-  briefing: (userId) => get(`/ai/briefing/${userId}`),
+  briefing: async (userId) => {
+    const b = await get<Briefing>(`/ai/briefing/${userId}`);
+    return { ...b, audio_url: b.audio_url ? absoluteUrl(b.audio_url) : null };
+  },
   insight: (userId) => get(`/ai/insight/${userId}`),
 
   login: (username, password) => signIn('/auth/login', username, password),
