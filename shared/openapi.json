@@ -462,6 +462,291 @@
           }
         }
       }
+    },
+    "/me/prefs": {
+      "get": {
+        "summary": "Get Prefs",
+        "operationId": "get_prefs_me_prefs_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Prefs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Put Prefs",
+        "operationId": "put_prefs_me_prefs_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Prefs"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Prefs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/sleep": {
+      "post": {
+        "summary": "Log Night",
+        "description": "Log a night by hand; one night per wake date, a new entry replaces the old.",
+        "operationId": "log_night_me_sleep_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualNight"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SleepNight"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/squad": {
+      "get": {
+        "summary": "My Squad",
+        "operationId": "my_squad_me_squad_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SquadInfo"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response My Squad Me Squad Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Squad",
+        "operationId": "create_squad_me_squad_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SquadCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SquadInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/squad/join": {
+      "post": {
+        "summary": "Join Squad",
+        "operationId": "join_squad_me_squad_join_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SquadJoin"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SquadInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -657,6 +942,27 @@
         ],
         "title": "LoginResponse"
       },
+      "ManualNight": {
+        "properties": {
+          "bed": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Bed"
+          },
+          "wake": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Wake"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bed",
+          "wake"
+        ],
+        "title": "ManualNight",
+        "description": "A night typed in by hand. Send device-local wall-clock ISO times WITHOUT a UTC offset."
+      },
       "NightScore": {
         "properties": {
           "day": {
@@ -760,6 +1066,38 @@
           "user"
         ],
         "title": "Overview"
+      },
+      "Prefs": {
+        "properties": {
+          "bedtime": {
+            "type": "integer",
+            "title": "Bedtime",
+            "default": 1365
+          },
+          "wake": {
+            "type": "integer",
+            "title": "Wake",
+            "default": 420
+          },
+          "hours": {
+            "type": "number",
+            "title": "Hours",
+            "default": 8
+          },
+          "share_details": {
+            "type": "boolean",
+            "title": "Share Details",
+            "default": true
+          },
+          "show_on_board": {
+            "type": "boolean",
+            "title": "Show On Board",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "Prefs",
+        "description": "Per-user goals and privacy toggles. Times are minutes after midnight."
       },
       "ScoreBreakdown": {
         "properties": {
@@ -888,6 +1226,19 @@
         ],
         "title": "SleepNight"
       },
+      "SquadCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SquadCreate"
+      },
       "SquadEntry": {
         "properties": {
           "rank": {
@@ -915,6 +1266,37 @@
           "members"
         ],
         "title": "SquadEntry"
+      },
+      "SquadInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "code"
+        ],
+        "title": "SquadInfo"
+      },
+      "SquadJoin": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "SquadJoin"
       },
       "SquadLeaderboard": {
         "properties": {

@@ -1,15 +1,25 @@
 """Two stores with the same methods: Store (in-memory, 8 seeded friends x 60 nights, used when DATABASE_URL
 is unset and by scripts/seed.py) and SqlStore (Tiger Cloud). `store` at the bottom picks one."""
 import random
+import string
 from datetime import date, datetime, time, timedelta
 from statistics import mean
 
 from .config import settings
 from .db import get_pool
-from .models import Leaderboard, LeaderboardEntry, NightScore, Overview, ScoreBreakdown, SleepNight, User
+from .models import (
+    Leaderboard, LeaderboardEntry, NightScore, Overview, Prefs, ScoreBreakdown, SleepNight, SquadInfo, User,
+)
 from .scoring import badge_for, compute_scores
 
 SEED_DAYS = 60
+DEMO_SQUAD_CODES = {"Wolfpack": "WOLF23", "Night Owls": "OWLS42", "Library Rats": "RATS17"}  # also in db/004_profile.sql
+
+
+def _new_code(name: str) -> str:
+    """4 letters from the squad name + 2 digits, e.g. 'Study Buddies' -> STUD42."""
+    letters = "".join(ch for ch in name.upper() if ch in string.ascii_uppercase).ljust(4, "X")[:4]
+    return letters + str(random.randint(10, 99))
 
 # name, squad, usual bedtime (hours after midnight: 23.0 = 11pm, 26.0 = 2am), hours asleep, pattern
 PROFILES = [
@@ -70,6 +80,8 @@ class Store:
         self.nights: dict[int, list[SleepNight]] = {}
         self.scores: dict[int, list] = {}
         self.hashes: dict[int, str] = {}
+        self.prefs: dict[int, Prefs] = {}
+        self.squads: dict[str, str] = dict(DEMO_SQUAD_CODES)  # name -> invite code
         for uid, (name, squad, bed_h, sleep_h, kind) in enumerate(PROFILES, start=1):
             self.users[uid] = User(id=uid, name=name, squad=squad, source="seed", is_demo=True)
             self.nights[uid] = _gen_nights(uid, bed_h, sleep_h, kind, today)
@@ -83,7 +95,7 @@ class Store:
 
     def delete_user(self, uid: int) -> None:
         """Remove the user and all their rows."""
-        for table in (self.users, self.nights, self.scores, self.hashes):
+        for table in (self.users, self.nights, self.scores, self.hashes, self.prefs):
             table.pop(uid, None)
 
     def login_info(self, name: str) -> tuple[User, str | None] | None:
@@ -93,6 +105,34 @@ class Store:
 
     def set_password(self, uid: int, hashed: str) -> None:
         self.hashes[uid] = hashed
+
+    def get_prefs(self, uid: int) -> Prefs:
+        return self.prefs.get(uid, Prefs())
+
+    def set_prefs(self, uid: int, p: Prefs) -> None:
+        self.prefs[uid] = p
+
+    def get_squad(self, uid: int) -> SquadInfo | None:
+        name = self.users[uid].squad
+        return SquadInfo(name=name, code=self.squads[name]) if name in self.squads else None
+
+    def create_squad(self, uid: int, name: str) -> SquadInfo | None:
+        """None if the name is taken (case-insensitive)."""
+        if name.lower() in (n.lower() for n in self.squads):
+            return None
+        code = _new_code(name)
+        while code in self.squads.values():
+            code = _new_code(name)
+        self.squads[name] = code
+        self.users[uid] = self.users[uid].model_copy(update={"squad": name})
+        return SquadInfo(name=name, code=code)
+
+    def join_squad(self, uid: int, code: str) -> SquadInfo | None:
+        name = next((n for n, c in self.squads.items() if c == code.strip().upper()), None)
+        if name is None:
+            return None
+        self.users[uid] = self.users[uid].model_copy(update={"squad": name})
+        return SquadInfo(name=name, code=self.squads[name])
 
     def recent_nights(self, uid: int, limit: int = 28) -> list[SleepNight]:
         """Last `limit` nights, oldest first (for the weekly AI insight)."""
@@ -104,7 +144,8 @@ class Store:
         by_day.update({n.day: n for n in new})
         self.nights[uid] = sorted(by_day.values(), key=lambda n: n.day)
         self.scores[uid] = compute_scores(self.nights[uid])
-        self.users[uid] = self.users[uid].model_copy(update={"is_demo": False, "source": "shortcut"})
+        if any(n.source == "shortcut" for n in new):
+            self.users[uid] = self.users[uid].model_copy(update={"is_demo": False, "source": "shortcut"})
 
     def overview(self, uid: int) -> Overview | None:
         user = self.users.get(uid)
@@ -143,7 +184,7 @@ class Store:
         since = today - timedelta(days=today.weekday()) if period == "week" else date.min  # week resets Monday
         rows = []
         for uid, user in self.users.items():
-            if squad and (user.squad or "").lower() != squad.lower():
+            if (squad and (user.squad or "").lower() != squad.lower()) or not self.prefs.get(uid, Prefs()).show_on_board:
                 continue
             vals = [s.score for n, s in zip(self.nights[uid], self.scores[uid]) if since <= n.day < before]
             if vals:
@@ -205,6 +246,48 @@ class SqlStore:
         with get_pool().connection() as c:
             c.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hashed, uid))
 
+    def get_prefs(self, uid: int) -> Prefs:
+        with get_pool().connection() as c:
+            r = c.execute(
+                "SELECT goal_bedtime AS bedtime, goal_wake AS wake, goal_hours AS hours, share_details, show_on_board"
+                " FROM users WHERE id = %s", (uid,)
+            ).fetchone()
+        return Prefs(**r)
+
+    def set_prefs(self, uid: int, p: Prefs) -> None:
+        with get_pool().connection() as c:
+            c.execute(
+                "UPDATE users SET goal_bedtime = %s, goal_wake = %s, goal_hours = %s, share_details = %s,"
+                " show_on_board = %s WHERE id = %s",
+                (p.bedtime, p.wake, p.hours, p.share_details, p.show_on_board, uid),
+            )
+
+    def get_squad(self, uid: int) -> SquadInfo | None:
+        with get_pool().connection() as c:
+            r = c.execute(
+                "SELECT s.name, s.code FROM users u JOIN squads s ON s.name = u.squad WHERE u.id = %s", (uid,)
+            ).fetchone()
+        return SquadInfo(**r) if r else None
+
+    def create_squad(self, uid: int, name: str) -> SquadInfo | None:
+        """None if the name is taken (case-insensitive)."""
+        with get_pool().connection() as c:
+            if c.execute("SELECT 1 FROM squads WHERE lower(name) = lower(%s)", (name,)).fetchone():
+                return None
+            code = _new_code(name)
+            while c.execute("SELECT 1 FROM squads WHERE code = %s", (code,)).fetchone():
+                code = _new_code(name)
+            c.execute("INSERT INTO squads (name, code) VALUES (%s, %s)", (name, code))
+            c.execute("UPDATE users SET squad = %s WHERE id = %s", (name, uid))
+        return SquadInfo(name=name, code=code)
+
+    def join_squad(self, uid: int, code: str) -> SquadInfo | None:
+        with get_pool().connection() as c:
+            r = c.execute("SELECT name, code FROM squads WHERE code = %s", (code.strip().upper(),)).fetchone()
+            if r:
+                c.execute("UPDATE users SET squad = %s WHERE id = %s", (r["name"], uid))
+        return SquadInfo(**r) if r else None
+
     def recent_nights(self, uid: int, limit: int = 28) -> list[SleepNight]:
         """Last `limit` nights, oldest first (for the weekly AI insight)."""
         with get_pool().connection() as c:
@@ -235,7 +318,8 @@ class SqlStore:
                     (datetime.combine(n.day, time(8)), uid, s.score, s.duration_pts, s.consistency_pts,
                      s.quality_pts, s.streak_pts, s.streak_days),
                 )
-            c.execute("UPDATE users SET is_demo = false, source = 'shortcut' WHERE id = %s", (uid,))
+            if any(n.source == "shortcut" for n in new):
+                c.execute("UPDATE users SET is_demo = false, source = 'shortcut' WHERE id = %s", (uid,))
 
     def overview(self, uid: int) -> Overview | None:
         with get_pool().connection() as c:
@@ -280,7 +364,7 @@ class SqlStore:
                 "SELECT u.id, u.name, u.squad, avg(d.score)::float AS score,"
                 " (SELECT streak_days FROM daily_scores WHERE user_id = u.id ORDER BY time DESC LIMIT 1) AS streak"
                 " FROM users u JOIN daily_scores d ON d.user_id = u.id"
-                " WHERE d.time >= %s AND d.time::date < %s AND (%s::text IS NULL OR lower(u.squad) = lower(%s))"
+                " WHERE u.show_on_board AND d.time >= %s AND d.time::date < %s AND (%s::text IS NULL OR lower(u.squad) = lower(%s))"
                 " GROUP BY u.id ORDER BY score DESC, u.name",
                 (since, before, squad, squad),
             ).fetchall()
