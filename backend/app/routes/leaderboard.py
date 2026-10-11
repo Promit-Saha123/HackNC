@@ -5,7 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import current_user_id
-from ..models import FriendCard, FriendDetails, Leaderboard, SquadEntry, SquadLeaderboard
+from ..models import FriendCard, FriendDetails, Leaderboard, SquadDetail, SquadEntry, SquadLeaderboard, SquadMember
 from ..scoring import bedtime_minutes
 from ..store import store
 
@@ -45,6 +45,23 @@ def squads(period: Literal["week", "all"] = "week"):
         period=period,
         entries=[SquadEntry(rank=i, squad=n, score=round(s, 1), members=m) for i, (n, s, m) in enumerate(rows, start=1)],
     )
+
+
+@router.get("/squads/{code}", response_model=SquadDetail)
+def squad_detail(code: str):
+    """Who is in a squad (by invite code). Score-level info only, and members who hid from the leaderboard are left out."""
+    squad = store.squad_by_code(code)
+    if squad is None:
+        raise HTTPException(404, "no squad with that code")
+    ranked = {e.user_id: e for e in store.leaderboard("all", squad.name).entries}
+    members = []
+    for u in store.list_users():
+        if (u.squad or "").lower() == squad.name.lower() and store.get_prefs(u.id).show_on_board:
+            e = ranked.get(u.id)
+            members.append(SquadMember(
+                user_id=u.id, name=u.name, streak_days=e.streak_days if e else 0, badge=e.badge if e else None
+            ))
+    return SquadDetail(name=squad.name, code=squad.code, members=members)
 
 
 @router.get("/users/{user_id}/card", response_model=FriendCard)

@@ -56,6 +56,16 @@
               "type": "integer",
               "title": "User Id"
             }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -65,6 +75,72 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Overview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{user_id}/history": {
+      "get": {
+        "summary": "History",
+        "description": "The last `days` nights (oldest first) with times, stage minutes and score: powers the calendar and Trends.",
+        "operationId": "history_users__user_id__history_get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 60,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HistoryNight"
+                  },
+                  "title": "Response History Users  User Id  History Get"
                 }
               }
             }
@@ -128,7 +204,7 @@
     "/sleep/shortcut": {
       "post": {
         "summary": "Shortcut",
-        "description": "Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line.\nAuth: X-Ingest-Token (from POST /ingest/token). A bare X-User-Id is accepted for demo profiles only.",
+        "description": "Plain-text body from the iOS Shortcut: one 'start_iso|end_iso|value' per line.\nIdentify the user with a plain X-User-Id, or with an X-Ingest-Token (from POST /ingest/token), which wins if both are sent.",
         "operationId": "shortcut_sleep_shortcut_post",
         "parameters": [
           {
@@ -271,6 +347,46 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SquadLeaderboard"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/squads/{code}": {
+      "get": {
+        "summary": "Squad Detail",
+        "description": "Who is in a squad (by invite code). Score-level info only, and members who hid from the leaderboard are left out.",
+        "operationId": "squad_detail_squads__code__get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SquadDetail"
                 }
               }
             }
@@ -857,6 +973,80 @@
           }
         }
       }
+    },
+    "/me/squad/leave": {
+      "post": {
+        "summary": "Leave Squad",
+        "operationId": "leave_squad_me_squad_leave_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/sync": {
+      "get": {
+        "summary": "Sync Status",
+        "description": "Apple Health row on Profile: has the Shortcut synced, and when.",
+        "operationId": "sync_status_me_sync_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -992,6 +1182,73 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HistoryNight": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "bedtime": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Bedtime"
+          },
+          "wake_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Wake Time"
+          },
+          "duration_min": {
+            "type": "integer",
+            "title": "Duration Min"
+          },
+          "efficiency": {
+            "type": "number",
+            "title": "Efficiency"
+          },
+          "deep_min": {
+            "type": "integer",
+            "title": "Deep Min"
+          },
+          "rem_min": {
+            "type": "integer",
+            "title": "Rem Min"
+          },
+          "light_min": {
+            "type": "integer",
+            "title": "Light Min"
+          },
+          "awake_min": {
+            "type": "integer",
+            "title": "Awake Min"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "bedtime",
+          "wake_time",
+          "duration_min",
+          "efficiency",
+          "deep_min",
+          "rem_min",
+          "light_min",
+          "awake_min",
+          "source",
+          "score"
+        ],
+        "title": "HistoryNight",
+        "description": "One night in GET /users/{id}/history: the full night plus its score."
       },
       "IngestToken": {
         "properties": {
@@ -1503,6 +1760,32 @@
         ],
         "title": "SquadCreate"
       },
+      "SquadDetail": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/SquadMember"
+            },
+            "type": "array",
+            "title": "Members"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "code",
+          "members"
+        ],
+        "title": "SquadDetail"
+      },
       "SquadEntry": {
         "properties": {
           "rank": {
@@ -1586,6 +1869,72 @@
           "entries"
         ],
         "title": "SquadLeaderboard"
+      },
+      "SquadMember": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "streak_days": {
+            "type": "integer",
+            "title": "Streak Days",
+            "default": 0
+          },
+          "badge": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Badge"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name"
+        ],
+        "title": "SquadMember",
+        "description": "Score-level info only: members who hid themselves from the leaderboard are left out."
+      },
+      "SyncStatus": {
+        "properties": {
+          "connected": {
+            "type": "boolean",
+            "title": "Connected"
+          },
+          "last_sync_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync At"
+          },
+          "nights_synced": {
+            "type": "integer",
+            "title": "Nights Synced",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "connected"
+        ],
+        "title": "SyncStatus",
+        "description": "Apple Health sync state for the Profile screen (the iOS Shortcut is the only sync path)."
       },
       "User": {
         "properties": {
