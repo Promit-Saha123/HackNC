@@ -1,7 +1,7 @@
 import { ApiError } from './errors';
 import { localIso } from './time';
 import { mockClient } from './mockClient';
-import type { Api, Briefing, LoginResponse, User } from './types';
+import type { Api, Briefing, ChatReply, LoginResponse, Transcript, User } from './types';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
 export const USE_MOCKS = process.env.EXPO_PUBLIC_USE_MOCKS !== 'false';
@@ -93,7 +93,20 @@ const httpClient: Api = {
     token = null; // the account no longer exists
   },
 
-  chat: (userId, messages) => request('POST', `/ai/chat/${userId}`, { messages }),
+  chat: async (userId, messages, options) => {
+    const r = await request<ChatReply>('POST', `/ai/chat/${userId}`, { messages, speak: !!options?.speak });
+    return { ...r, audio_url: r.audio_url ? absoluteUrl(r.audio_url) : null };
+  },
+  transcribe: async (userId, fileUri) => {
+    const audio = await (await fetch(fileUri)).blob(); // the recording on the phone
+    const res = await fetch(`${BASE_URL}/ai/transcribe/${userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'audio/mp4', ...authHeaders() },
+      body: audio,
+    });
+    if (!res.ok) throw new ApiError(res.status, await errorMessage(res));
+    return (await res.json()) as Transcript;
+  },
 };
 
 /** Screens call `api.*`; flip EXPO_PUBLIC_USE_MOCKS to switch between fixtures and the backend. */

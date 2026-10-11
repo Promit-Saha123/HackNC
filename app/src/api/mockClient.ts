@@ -306,6 +306,10 @@ export const mockClient: Api = {
     signedIn = null;
   },
 
+  transcribe: async () => {
+    await new Promise((r) => setTimeout(r, 600));
+    return { text: 'How can I climb the leaderboard?' }; // mock "heard" question
+  },
   chat: async (userId, messages) => {
     await new Promise((r) => setTimeout(r, 700)); // feel like a real reply
     return mockSomni(userId, messages[messages.length - 1]?.text ?? '');

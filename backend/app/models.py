@@ -254,9 +254,16 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]  # oldest first; the last one is the user's new question
+    speak: bool = False  # True (voice chat): also return Somni's reply as ElevenLabs audio
 
 
 class ChatReply(BaseModel):
     reply: str
     suggestions: list[str] = []  # 0-3 tappable follow-up questions
     in_scope: bool = True  # False when Somni declined an off-topic or medical question
+    audio_url: str | None = None  # spoken reply (MP3) when speak=true and ElevenLabs is configured
+
+
+class Transcript(BaseModel):
+    """Push-to-talk speech-to-text result (P2, POST /ai/transcribe/{user_id})."""
+    text: str
