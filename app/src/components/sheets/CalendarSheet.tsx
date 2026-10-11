@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/Card';
+import { GlossCap } from '@/components/GlossCap';
 import { Sheet } from '@/components/Sheet';
 import { colors, gradient, scoreBand } from '@/theme/colors';
 import { fontFamily, type as t } from '@/theme/fonts';
@@ -76,7 +77,12 @@ function CalendarBody({ entries, initialDay }: { entries: DayEntry[]; initialDay
           return (
             <Pressable key={key} style={styles.cell} disabled={future} onPress={() => setSelected(key)}>
               <View style={styles.dayCircle}>
-                {isSel && <LinearGradient colors={gradient} style={[StyleSheet.absoluteFill, styles.round]} />}
+                {isSel && (
+                  <View style={[StyleSheet.absoluteFill, styles.round, styles.clip]}>
+                    <LinearGradient colors={gradient} style={StyleSheet.absoluteFill} />
+                    <GlossCap strength={0.7} />
+                  </View>
+                )}
                 <Text
                   style={[
                     styles.dayText,
@@ -153,6 +159,7 @@ const styles = StyleSheet.create({
   cell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 3, gap: 2 },
   dayCircle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   round: { borderRadius: 17 },
+  clip: { overflow: 'hidden' },
   dayText: { fontFamily: fontFamily.medium, fontSize: 15, color: colors.text },
   future: { color: colors.dimBar },
   today: { color: colors.tabActive, textDecorationLine: 'underline' },

@@ -16,7 +16,7 @@ export function Sheet({ visible, onClose, title, subtitle, children }: Props) {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <Glass style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
+        <Glass dark tint="rgba(14,34,88,0.55)" style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
           <View style={styles.grabber} />
           {title && (
             <View style={styles.head}>

@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { LeaderboardEntry } from '@/api/types';
 import { Avatar } from '@/components/Avatar';
+import { GlossCap } from '@/components/GlossCap';
 import { RankChange } from '@/components/RankChange';
 import { colors } from '@/theme/colors';
 import { fontFamily } from '@/theme/fonts';
@@ -56,6 +57,7 @@ export function Podium({ top, meId, valueOf, delta, onPress }: Props) {
                 colors={place === 1 ? ['rgba(255,255,255,0.28)', 'rgba(255,255,255,0.04)'] : ['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.02)']}
                 style={StyleSheet.absoluteFill}
               />
+              <GlossCap strength={place === 1 ? 0.45 : 0.3} />
               <Text style={styles.blockNum}>{place}</Text>
             </View>
           </Pressable>

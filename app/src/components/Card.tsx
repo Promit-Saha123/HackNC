@@ -8,6 +8,8 @@ import { radius, spacing } from '@/theme/spacing';
 type Props = {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  /** Glass tint override (e.g. darker cards on the login screen for contrast). */
+  tint?: string;
   /** Brighter edge, used for the "You" row. */
   highlight?: boolean;
   /** Pass 0 for cards that hold full-bleed rows. */
@@ -16,9 +18,9 @@ type Props = {
 };
 
 /** Liquid Glass card (dark card fallback before iOS 26). */
-export function Card({ children, style, highlight, padding = spacing.md, onPress }: Props) {
+export function Card({ children, style, highlight, padding = spacing.md, onPress, tint }: Props) {
   const body = (
-    <Glass interactive={!!onPress} style={[styles.card, highlight && styles.highlight, !onPress && style]}>
+    <Glass interactive={!!onPress} tint={tint} dark={!!tint} style={[styles.card, highlight && styles.highlight, !onPress && style]}>
       <View style={{ padding }}>{children}</View>
     </Glass>
   );

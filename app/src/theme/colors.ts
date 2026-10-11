@@ -14,7 +14,7 @@ export const colors = {
   sheet: '#172C63',
 
   text: '#FFFFFF',
-  textSoft: 'rgba(236,243,255,0.78)',
+  textSoft: 'rgba(240,247,255,0.86)',
   tabInactive: 'rgba(236,243,255,0.7)',
   tabActive: '#FFFFFF',
 

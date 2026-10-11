@@ -24,18 +24,20 @@ export const fontFamily = {
 } as const;
 
 /** Soft shadow so white headings stay readable on the bright daytime sky. */
-const lift = { textShadowColor: 'rgba(10,40,90,0.35)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 1 } };
+const lift = { textShadowColor: 'rgba(10,40,90,0.45)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 1 } };
+/** Lighter shadow for body text sitting on see-through glass. */
+const soft = { textShadowColor: 'rgba(8,30,80,0.5)', textShadowRadius: 5, textShadowOffset: { width: 0, height: 1 } };
 
 /** Type scale from the design doc. Spread into a Text style: `style={type.title}`. */
 export const type = {
   title: { fontFamily: fontFamily.bold, fontSize: 34, color: colors.text, ...lift },
   subtitle: { fontFamily: fontFamily.medium, fontSize: 16, color: colors.textSoft, ...lift },
-  bigScore: { fontFamily: fontFamily.bold, fontSize: 48, color: colors.text, fontVariant: ['tabular-nums'] },
-  ringLabel: { fontFamily: fontFamily.medium, fontSize: 16, color: colors.textSoft },
+  bigScore: { fontFamily: fontFamily.bold, fontSize: 48, color: colors.text, fontVariant: ['tabular-nums'], ...lift },
+  ringLabel: { fontFamily: fontFamily.medium, fontSize: 16, color: colors.textSoft, ...soft },
   section: { fontFamily: fontFamily.semibold, fontSize: 20, color: colors.text, ...lift },
-  rowTitle: { fontFamily: fontFamily.semibold, fontSize: 18, color: colors.text, fontVariant: ['tabular-nums'] },
-  body: { fontFamily: fontFamily.regular, fontSize: 15, color: colors.textSoft },
-  caption: { fontFamily: fontFamily.regular, fontSize: 13, color: colors.textSoft },
+  rowTitle: { fontFamily: fontFamily.semibold, fontSize: 18, color: colors.text, fontVariant: ['tabular-nums'], ...soft },
+  body: { fontFamily: fontFamily.regular, fontSize: 15, color: colors.textSoft, ...soft },
+  caption: { fontFamily: fontFamily.regular, fontSize: 13, color: colors.textSoft, ...soft },
   tabLabel: { fontFamily: fontFamily.medium, fontSize: 11 },
   button: { fontFamily: fontFamily.semibold, fontSize: 17, color: colors.text },
 } satisfies Record<string, TextStyle>;
