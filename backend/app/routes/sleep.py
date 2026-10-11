@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
 from ..auth import current_user_id, ingest_user_id, require_self
+from ..integrations import whoop
 from ..models import HistoryNight, Overview, ShortcutResult, SleepNight, User
 from ..store import store
 
@@ -107,6 +108,9 @@ def delete_data(user_id: int, uid: int = Depends(current_user_id)):
         raise HTTPException(404, "unknown user")
     if user.is_demo:
         raise HTTPException(403, "demo profiles can't be deleted")
+    conn = store.get_whoop(user_id)
+    if conn:  # also cut our access at WHOOP, not just our copy of the tokens (the row itself goes with the user)
+        whoop.revoke(conn["access_token"])
     store.delete_user(user_id)
 
 

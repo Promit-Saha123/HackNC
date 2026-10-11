@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     elevenlabs_voice_id: str = ""
     whoop_client_id: str = ""
     whoop_client_secret: str = ""
+    public_url: str = "https://sleep-squad-api.onrender.com"  # this API's public address: WHOOP redirects back to {public_url}/whoop/callback
     cors_origins: str = "*"
     auth_secret: str = "dev-secret-change-me"  # set AUTH_SECRET in backend/.env for the demo
     strict_privacy: bool = False  # True: overview/history are readable only by the signed-in user
