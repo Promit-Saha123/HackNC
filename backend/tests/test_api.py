@@ -10,6 +10,15 @@ def test_users_seeded():
     assert len([u for u in users if u["is_demo"]]) == 8  # real users (non-demo) may also exist
 
 
+def test_improved_and_squads():
+    imp = c.get("/leaderboard?period=improved").json()["entries"]
+    assert all(e["delta"] > 0 for e in imp)  # improvers only, never a "worst" list
+    assert [e["delta"] for e in imp] == sorted((e["delta"] for e in imp), reverse=True)
+    sq = c.get("/leaderboard/squads?period=all").json()["entries"]
+    assert [e["rank"] for e in sq] == list(range(1, len(sq) + 1))
+    assert [e["score"] for e in sq] == sorted((e["score"] for e in sq), reverse=True)
+
+
 def test_overview():
     o = c.get("/users/1/overview").json()
     assert len(o["history"]) == 7 and 0 <= o["score"]["score"] <= 100

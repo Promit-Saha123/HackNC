@@ -105,6 +105,16 @@ class Store:
             badge=badge_for(streak),
         )
 
+    def weekly_avgs(self, monday: date) -> dict[int, float]:
+        """Average nightly score per user for the week starting `monday` (users with no nights that week are absent)."""
+        end = monday + timedelta(days=7)
+        out = {}
+        for uid in self.users:
+            vals = [s.score for n, s in zip(self.nights[uid], self.scores[uid]) if monday <= n.day < end]
+            if vals:
+                out[uid] = mean(vals)
+        return out
+
     def leaderboard(self, period: str, squad: str | None) -> Leaderboard:
         today = date.today()
         since = today - timedelta(days=today.weekday()) if period == "week" else date.min  # week resets Monday
@@ -200,6 +210,12 @@ class SqlStore:
             streak_days=score.streak_days,
             badge=badge_for(score.streak_days),
         )
+
+    def weekly_avgs(self, monday: date) -> dict[int, float]:
+        """Same as Store.weekly_avgs, read from the weekly_leaderboard continuous aggregate."""
+        with get_pool().connection() as c:
+            rows = c.execute("SELECT user_id, avg_score FROM weekly_leaderboard WHERE week = %s", (monday,))
+            return {r["user_id"]: r["avg_score"] for r in rows}
 
     def leaderboard(self, period: str, squad: str | None) -> Leaderboard:
         today = date.today()
