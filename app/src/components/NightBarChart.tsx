@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
+import { GlossCap } from '@/components/GlossCap';
 import { colors, gradient } from '@/theme/colors';
 import { type as t } from '@/theme/fonts';
 
@@ -97,6 +98,15 @@ function Bar({ bar, dimmed }: { bar: ChartBar; dimmed: boolean }) {
       {bar.bright && (
         <LinearGradient colors={gradient} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
       )}
+      {/* Glass-tube shine down the left side, soft shade on the right */}
+      <GlossCap direction="side" strength={bar.bright ? 0.75 : 0.3} />
+      <LinearGradient
+        pointerEvents="none"
+        colors={['rgba(10,42,106,0)', 'rgba(10,42,106,0.22)']}
+        start={{ x: 0.6, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
       {bar.bright && tall && (
         <View style={styles.moon}>
           <SymbolView name="moon.fill" size={14} tintColor={colors.onAccent} />
@@ -127,7 +137,15 @@ const styles = StyleSheet.create({
   dashRow: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', overflow: 'hidden' },
   bars: { ...StyleSheet.absoluteFill, flexDirection: 'row', justifyContent: 'space-around' },
   column: { width: BAR_WIDTH, height: PLOT_HEIGHT },
-  bar: { position: 'absolute', left: 0, width: BAR_WIDTH, borderRadius: BAR_WIDTH / 2, overflow: 'hidden' },
+  bar: {
+    position: 'absolute',
+    left: 0,
+    width: BAR_WIDTH,
+    borderRadius: BAR_WIDTH / 2,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+  },
   dim: { backgroundColor: colors.dimBar },
   faded: { opacity: 0.45 },
   moon: { position: 'absolute', top: 6, left: 0, right: 0, alignItems: 'center' },

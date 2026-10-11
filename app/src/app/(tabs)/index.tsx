@@ -1,14 +1,16 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { ActionBar } from '@/components/ActionBar';
 import { Avatar } from '@/components/Avatar';
 import { BriefingCard } from '@/components/BriefingCard';
 import { Card, Divider } from '@/components/Card';
+import { GlassIconButton } from '@/components/Glass';
+import { GlassBubble } from '@/components/GlassBubble';
 import { IconCircle } from '@/components/IconCircle';
-import { Screen } from '@/components/Screen';
+import { Screen, Section } from '@/components/Screen';
 import { SleepRing } from '@/components/SleepRing';
 import { SomniButton } from '@/components/SomniChat';
 import { CalendarSheet } from '@/components/sheets/CalendarSheet';
@@ -21,29 +23,29 @@ import { useOverview } from '@/hooks/use-overview';
 import { usePrefs } from '@/state/prefs';
 import { BADGES } from '@/theme/badges';
 import { colors, scoreBand } from '@/theme/colors';
-import { type as t } from '@/theme/fonts';
+import { fontFamily, type as t } from '@/theme/fonts';
+import { SCREEN_PADDING } from '@/theme/spacing';
 import { clock, hm, longDate, weekday } from '@/utils/format';
 import { dayEntries, demoStages, minutesOfDay } from '@/utils/nights';
 
 type SheetKey = 'night' | 'calendar' | 'log' | 'targets' | 'squad';
 
-const RING_MIN = 130;
-const RING_MAX = 290;
+const RING_MAX = 320;
 
 export default function HomeScreen() {
-  const { overview, error, tick, userId } = useOverview();
+  const { overview, error, tick, userId, refreshing, refresh } = useOverview();
   const { goals, logs } = usePrefs();
+  const { width } = useWindowDimensions();
   const [sheet, setSheet] = useState<SheetKey | null>(null);
   const [info, setInfo] = useState<Info | null>(null);
   const [calendarDay, setCalendarDay] = useState<string | null>(null);
-  const [ringBox, setRingBox] = useState({ w: 0, h: 0 });
 
   const night = overview?.last_night;
   const score = overview?.score?.score ?? null;
   const streak = overview?.streak_days ?? 0;
   const entries = dayEntries(overview, logs);
   const stages = night ? demoStages(night.duration_min) : null;
-  const ringSize = Math.max(RING_MIN, Math.min(RING_MAX, ringBox.w, ringBox.h));
+  const ringSize = Math.min(RING_MAX, width - 2 * SCREEN_PADDING - 20);
   const close = () => setSheet(null);
 
   const openCalendar = (day: string | null) => {
@@ -78,59 +80,57 @@ export default function HomeScreen() {
 
   return (
     <Screen
-      scroll={false}
       title="Welcome"
       subtitle={error ? "Can't reach the backend" : longDate()}
+      refreshing={refreshing}
+      onRefresh={refresh}
       right={
         <>
           <SomniButton userId={userId} name={overview?.user.name} />
-          <Pressable
-            hitSlop={8}
-            onPress={() => openCalendar(null)}
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}>
+          <GlassIconButton onPress={() => openCalendar(null)}>
             <SymbolView name="calendar" size={20} tintColor={colors.text} />
-          </Pressable>
+          </GlassIconButton>
           <Pressable hitSlop={8} onPress={() => router.navigate('/profile')}>
             <Avatar name={overview?.user.name ?? '?'} />
           </Pressable>
         </>
       }>
-      <View
-        style={styles.ringArea}
-        onLayout={(e) => setRingBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-        {ringBox.h > 0 && (
-          <SleepRing
-            size={ringSize}
-            score={score}
-            stages={stages}
-            sleep={night ? { bed: minutesOfDay(night.bedtime), wake: minutesOfDay(night.wake_time) } : null}
-            target={{ bed: goals.bedtime, wake: goals.wake }}
-            onPress={() => setSheet('night')}
-          />
-        )}
+      <View style={styles.ringArea}>
+        <GlassBubble size={ringSize * 1.02} style={styles.disc} />
+        <SleepRing
+          size={ringSize}
+          score={score}
+          stages={stages}
+          sleep={night ? { bed: minutesOfDay(night.bedtime), wake: minutesOfDay(night.wake_time) } : null}
+          target={{ bed: goals.bedtime, wake: goals.wake }}
+          onPress={() => setSheet('night')}
+        />
       </View>
 
-      <Card padding={0}>
-        <View style={styles.recap}>
-          <Pressable style={({ pressed }) => [styles.recapCell, pressed && styles.pressed]} onPress={() => setInfo(timeInfo())}>
+      <BriefingCard userId={userId} refreshKey={tick} />
+
+      <Section title="Quick recap">
+      <View style={styles.recap}>
+        <Card padding={0} style={styles.recapTile} onPress={() => setInfo(timeInfo())}>
+          <View style={styles.recapCell}>
             <IconCircle name="moon.fill" size={40} />
             <View>
               <Text style={t.caption}>Time slept</Text>
               <Text style={t.rowTitle}>{night ? hm(night.duration_min) : '--'}</Text>
             </View>
-          </Pressable>
-          <View style={styles.vline} />
-          <Pressable style={({ pressed }) => [styles.recapCell, pressed && styles.pressed]} onPress={() => setInfo(streakInfo())}>
+          </View>
+        </Card>
+        <Card padding={0} style={styles.recapTile} onPress={() => setInfo(streakInfo())}>
+          <View style={styles.recapCell}>
             <IconCircle name="flame.fill" size={40} />
             <View>
               <Text style={t.caption}>Streak</Text>
               <Text style={t.rowTitle}>{overview ? `${streak} nights` : '--'}</Text>
             </View>
-          </Pressable>
-        </View>
-      </Card>
-
-      <BriefingCard userId={userId} refreshKey={tick} />
+          </View>
+        </Card>
+      </View>
+      </Section>
 
       <ActionBar
         actions={[
@@ -140,15 +140,16 @@ export default function HomeScreen() {
         ]}
       />
 
+      <View style={styles.logSection}>
+      <Pressable style={styles.logHead} onPress={() => openCalendar(null)}>
+        <Text style={t.section}>Sleep log</Text>
+        <Text style={styles.link}>See calendar</Text>
+      </Pressable>
       <Card padding={0}>
-        <Pressable style={styles.logHead} onPress={() => openCalendar(null)}>
-          <Text style={t.rowTitle}>Sleep log</Text>
-          <Text style={styles.link}>See calendar</Text>
-        </Pressable>
         {entries.length === 0 && <Text style={[t.body, styles.empty]}>Nothing logged yet.</Text>}
-        {entries.slice(0, 2).map((e, i) => (
+        {entries.slice(0, 5).map((e, i) => (
           <View key={e.day}>
-            <Divider />
+            {i > 0 && <Divider />}
             <Pressable style={({ pressed }) => [styles.logRow, pressed && styles.pressed]} onPress={() => openCalendar(e.day)}>
               <View style={styles.logText}>
                 <Text style={styles.logTitle}>
@@ -166,6 +167,7 @@ export default function HomeScreen() {
           </View>
         ))}
       </Card>
+      </View>
 
       <NightSheet visible={sheet === 'night'} onClose={close} overview={overview} stages={stages} goals={goals} />
       <CalendarSheet visible={sheet === 'calendar'} onClose={close} entries={entries} initialDay={calendarDay} />
@@ -178,25 +180,17 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.raised,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   pressed: { opacity: 0.75 },
-  ringArea: { flex: 1, minHeight: RING_MIN, alignItems: 'center', justifyContent: 'center' },
-  recap: { flexDirection: 'row', alignItems: 'center' },
-  recapCell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
-  vline: { width: 1, alignSelf: 'stretch', backgroundColor: colors.divider },
-  logHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10 },
-  link: { color: colors.tabActive, fontSize: 14 },
+  ringArea: { alignItems: 'center', justifyContent: 'center', paddingVertical: 4 },
+  disc: { position: 'absolute' },
+  recap: { flexDirection: 'row', gap: 12 },
+  recapTile: { flex: 1 },
+  recapCell: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
+  logSection: { gap: 12 },
+  logHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  link: { color: colors.textSoft, fontSize: 14, fontFamily: fontFamily.medium },
   empty: { padding: 14 },
-  logRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 9 },
+  logRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   logText: { flex: 1, gap: 1 },
   logTitle: { ...t.rowTitle, fontSize: 16 },
   logRight: { alignItems: 'flex-end', gap: 1 },

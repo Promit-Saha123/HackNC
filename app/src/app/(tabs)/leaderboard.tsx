@@ -6,6 +6,7 @@ import { api } from '@/api/client';
 import type { LeaderboardEntry, Overview } from '@/api/types';
 import { Avatar } from '@/components/Avatar';
 import { Card, Divider } from '@/components/Card';
+import { GlassIconButton } from '@/components/Glass';
 import { IconCircle } from '@/components/IconCircle';
 import { Podium } from '@/components/Podium';
 import { RankChange } from '@/components/RankChange';
@@ -189,9 +190,9 @@ export default function LeaderboardScreen() {
       title="Leaderboard"
       subtitle={SUBTITLE[board]}
       right={
-        <Pressable hitSlop={8} onPress={() => setInfo(boardInfo())} style={({ pressed }) => [styles.infoBtn, pressed && styles.pressed]}>
+        <GlassIconButton onPress={() => setInfo(boardInfo())}>
           <SymbolView name="info.circle" size={20} tintColor={colors.text} />
-        </Pressable>
+        </GlassIconButton>
       }
       refreshing={refreshing}
       onRefresh={() => {
@@ -297,16 +298,6 @@ export default function LeaderboardScreen() {
 
 const styles = StyleSheet.create({
   error: { color: colors.danger, fontSize: 14 },
-  infoBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.raised,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   pressed: { opacity: 0.75 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   me: { backgroundColor: colors.highlight },

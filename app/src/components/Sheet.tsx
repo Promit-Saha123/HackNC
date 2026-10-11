@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Glass, HAS_GLASS } from '@/components/Glass';
 import { colors } from '@/theme/colors';
 import { type as t } from '@/theme/fonts';
 import { SCREEN_PADDING, spacing } from '@/theme/spacing';
@@ -15,7 +16,7 @@ export function Sheet({ visible, onClose, title, subtitle, children }: Props) {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
+        <Glass dark tint="rgba(14,34,88,0.55)" style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
           <View style={styles.grabber} />
           {title && (
             <View style={styles.head}>
@@ -24,7 +25,7 @@ export function Sheet({ visible, onClose, title, subtitle, children }: Props) {
             </View>
           )}
           {children}
-        </View>
+        </Glass>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -32,10 +33,10 @@ export function Sheet({ visible, onClose, title, subtitle, children }: Props) {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  backdrop: { flex: 1, backgroundColor: colors.backdrop },
+  backdrop: { flex: 1, backgroundColor: HAS_GLASS ? 'rgba(0,0,0,0.45)' : colors.backdrop },
   sheet: {
     maxHeight: '88%',
-    backgroundColor: colors.card,
+    backgroundColor: HAS_GLASS ? undefined : colors.sheet,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 1,

@@ -15,6 +15,13 @@ export function GradientButton({ label, onPress, disabled, style }: Props) {
       disabled={disabled}
       style={({ pressed }) => [styles.press, pressed && styles.pressed, disabled && styles.disabled, style]}>
       <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fill}>
+        {/* Glossy cap on the top half, Aero-style */}
+        <LinearGradient
+          colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0.15)', 'rgba(255,255,255,0)']}
+          locations={[0, 0.48, 0.52]}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
         <Text style={[t.button, { color: colors.onAccent }]}>{label}</Text>
       </LinearGradient>
     </Pressable>
