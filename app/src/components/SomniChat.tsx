@@ -31,7 +31,7 @@ const STARTERS = ['Why did my score change?', "How's my streak going?", 'How can
 
 type Turn = ChatMessage & { local?: boolean }; // local = greeting/errors shown in the UI but never sent to the API
 
-/** Floating "Ask Somni" button for Home; opens the Somni chat sheet. */
+/** Somni icon for the Home header (next to the calendar); opens the Somni chat sheet (type or talk). */
 export function SomniButton({ userId, name }: { userId: number; name?: string }) {
   const [open, setOpen] = useState(false);
   return (
@@ -39,10 +39,10 @@ export function SomniButton({ userId, name }: { userId: number; name?: string })
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Ask Somni, your sleep coach"
+        hitSlop={8}
         onPress={() => setOpen(true)}
-        style={({ pressed }) => [styles.fab, pressed && styles.pressed]}>
-        <SymbolView name="sparkles" size={16} tintColor={colors.onAccent} />
-        <Text style={styles.fabText}>Ask Somni</Text>
+        style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}>
+        <SymbolView name="sparkles" size={20} tintColor={colors.text} />
       </Pressable>
       {/* key: a different user starts a fresh conversation */}
       <SomniChat key={userId} visible={open} onClose={() => setOpen(false)} userId={userId} name={name} />
@@ -231,23 +231,17 @@ export function SomniChat({ visible, onClose, userId, name }: Props) {
 }
 
 const styles = StyleSheet.create({
-  fab: {
-    position: 'absolute',
-    right: 0,
-    bottom: spacing.sm,
-    flexDirection: 'row',
+  // Same look as the calendar button beside it in Home's header.
+  headerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.raised,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: radius.pill,
-    backgroundColor: colors.accent,
-    shadowColor: colors.glow,
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 0 },
+    justifyContent: 'center',
   },
-  fabText: { fontFamily: fontFamily.semibold, fontSize: 14, color: colors.onAccent },
   pressed: { opacity: 0.8 },
   sheet: { flex: 1, backgroundColor: colors.bg },
   header: {
