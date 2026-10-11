@@ -16,6 +16,16 @@ class User(BaseModel):
     is_demo: bool = True
 
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    user: User
+    token: str
+
+
 class SleepNight(BaseModel):
     day: dt.date  # wake-up date
     bedtime: dt.datetime

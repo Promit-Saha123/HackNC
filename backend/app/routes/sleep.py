@@ -1,8 +1,9 @@
 import re
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
+from ..auth import current_user_id
 from ..models import Overview, ShortcutResult, SleepNight, User
 from ..store import store
 
@@ -86,8 +87,10 @@ def overview(user_id: int):
 
 
 @router.delete("/users/{user_id}/data", status_code=204)
-def delete_data(user_id: int):
-    """Privacy: remove a user's rows. Demo profiles are shared by the whole squad, so they can't be deleted."""
+def delete_data(user_id: int, uid: int = Depends(current_user_id)):
+    """Privacy: remove a user's rows (own account only). Demo profiles are shared by the whole squad, so they can't be deleted."""
+    if uid != user_id:
+        raise HTTPException(403, "you can only delete your own data")
     user = next((u for u in store.list_users() if u.id == user_id), None)
     if user is None:
         raise HTTPException(404, "unknown user")
